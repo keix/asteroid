@@ -1,5 +1,5 @@
 # Asteroid
-An OpenID Connect (OIDC) Provider implementation written in Go using the Gin framework, intended to be forked as a starter template.
+An OpenID Connect (OIDC) Provider implementation written in Go using the Gin framework.
 
 ## Prerequisites
 - Go 1.22 or later
@@ -72,9 +72,12 @@ A DynamoDB Local example is provided under examples/ddb/.
 DynamoDB + Go enables fast, scalable persistence and keeps identity data isolated from the main application.
 
 ## Docker
-Asteroid is not Dockerized by default.  
+Asteroid is not Dockerized by default. A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
 
-A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
+## Security Note
+Asteroid loads the RSA private key once at startup and keeps it in memory.
+
+The key must be stored securely and should never be committed to version control. For production environments, a secure key management service (KMS) is strongly recommended.
 
 ## License
 Copyright KEI SAWAMURA 2025.  

@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
 	"asteroid/internal/config"
 	"asteroid/internal/http"
 	"asteroid/internal/store"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
