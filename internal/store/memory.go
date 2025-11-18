@@ -14,8 +14,8 @@ var (
 )
 
 type MemoryUserStore struct {
-	mu    sync.RWMutex
-	users map[string]*User
+	mu      sync.RWMutex
+	users   map[string]*User
 	byEmail map[string]*User
 }
 
@@ -29,7 +29,7 @@ func NewMemoryUserStore() *MemoryUserStore {
 func (s *MemoryUserStore) GetUserByID(ctx context.Context, id string) (*User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	user, exists := s.users[id]
 	if !exists {
 		return nil, ErrUserNotFound
@@ -40,7 +40,7 @@ func (s *MemoryUserStore) GetUserByID(ctx context.Context, id string) (*User, er
 func (s *MemoryUserStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	user, exists := s.byEmail[email]
 	if !exists {
 		return nil, ErrUserNotFound
@@ -51,7 +51,7 @@ func (s *MemoryUserStore) GetUserByEmail(ctx context.Context, email string) (*Us
 func (s *MemoryUserStore) SaveUser(user *User) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.users[user.ID] = user
 	s.byEmail[user.Email] = user
 }
@@ -70,7 +70,7 @@ func NewMemoryClientStore() *MemoryClientStore {
 func (s *MemoryClientStore) GetClient(ctx context.Context, id string) (*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	client, exists := s.clients[id]
 	if !exists {
 		return nil, ErrClientNotFound
@@ -81,7 +81,7 @@ func (s *MemoryClientStore) GetClient(ctx context.Context, id string) (*Client, 
 func (s *MemoryClientStore) SaveClient(client *Client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.clients[client.ID] = client
 }
 
@@ -94,7 +94,7 @@ func NewMemoryAuthCodeStore() *MemoryAuthCodeStore {
 	store := &MemoryAuthCodeStore{
 		codes: make(map[string]*AuthCode),
 	}
-	
+
 	go store.cleanup()
 	return store
 }
@@ -102,7 +102,7 @@ func NewMemoryAuthCodeStore() *MemoryAuthCodeStore {
 func (s *MemoryAuthCodeStore) SaveAuthCode(ctx context.Context, code *AuthCode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.codes[code.Code] = code
 	return nil
 }
@@ -110,23 +110,23 @@ func (s *MemoryAuthCodeStore) SaveAuthCode(ctx context.Context, code *AuthCode) 
 func (s *MemoryAuthCodeStore) GetAuthCode(ctx context.Context, code string) (*AuthCode, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	authCode, exists := s.codes[code]
 	if !exists {
 		return nil, ErrAuthCodeNotFound
 	}
-	
+
 	if time.Now().After(authCode.ExpiresAt) {
 		return nil, ErrAuthCodeNotFound
 	}
-	
+
 	return authCode, nil
 }
 
 func (s *MemoryAuthCodeStore) DeleteAuthCode(ctx context.Context, code string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	delete(s.codes, code)
 	return nil
 }
@@ -134,7 +134,7 @@ func (s *MemoryAuthCodeStore) DeleteAuthCode(ctx context.Context, code string) e
 func (s *MemoryAuthCodeStore) cleanup() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		s.mu.Lock()
 		now := time.Now()

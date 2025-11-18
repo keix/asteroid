@@ -6,19 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"asteroid/internal/config"
 	"asteroid/internal/http"
-	"asteroid/internal/key"
+	"asteroid/internal/store"
 )
 
 func main() {
 	cfg := config.Load()
 
-	provider, err := key.NewLocalKeyProvider(cfg.PrivateKeyPath)
+	keyStore, err := store.NewLocalKeyStore(cfg.PrivateKeyPath)
 	if err != nil {
 		log.Fatalf("failed to load private key: %v", err)
 	}
 
 	r := gin.Default()
-	http.RegisterRoutes(r, provider, cfg)
+	http.RegisterRoutes(r, keyStore, cfg)
 
 	log.Println("Asteroid OIDC Provider running on :8880")
 	r.Run(":8880")

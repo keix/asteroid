@@ -5,8 +5,9 @@ import (
 	"math/big"
 	"net/http"
 
+	"asteroid/internal/store"
+
 	"github.com/gin-gonic/gin"
-	"asteroid/internal/key"
 )
 
 type JWK struct {
@@ -18,10 +19,21 @@ type JWK struct {
 	E   string `json:"e"`
 }
 
-func JWKSHandler(kp key.KeyProvider) gin.HandlerFunc {
+func JWKSHandler(keyStore store.KeyStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pub := kp.PublicKey()
+		privateKey, err := keyStore.GetSigningKey(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get signing key"})
+			return
+		}
 
+		kid, err := keyStore.GetKid(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get key id"})
+			return
+		}
+
+		pub := &privateKey.PublicKey
 		n := base64.RawURLEncoding.EncodeToString(pub.N.Bytes())
 		eBytes := big.NewInt(int64(pub.E)).Bytes()
 		e := base64.RawURLEncoding.EncodeToString(eBytes)
@@ -30,7 +42,7 @@ func JWKSHandler(kp key.KeyProvider) gin.HandlerFunc {
 			Kty: "RSA",
 			Use: "sig",
 			Alg: "RS256",
-			Kid: kp.Kid(),
+			Kid: kid,
 			N:   n,
 			E:   e,
 		}

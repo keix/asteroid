@@ -5,20 +5,20 @@ A minimal OpenID Connect (OIDC) Provider implementation written in Go using the 
 - Go 1.22 or later
 - OpenSSL (for generating RSA private keys)
 
-## Building
-```bash
-go mod tidy
-go build -o bin/asteroid ./cmd/server
-```
-
-## Running
+## Running Locally
 1. Generate RSA private key:
 ```bash
 mkdir -p keys
 openssl genrsa -out keys/private.pem 2048
 ```
 
-2. Start the server:
+2. Build the server:
+```bash
+go mod tidy
+go build -o bin/asteroid ./cmd/server
+```
+
+3. Start the server:
 ```bash
 ./bin/asteroid
 ```
@@ -69,3 +69,7 @@ The internal stores (users, clients, keys, auth codes) are defined as interfaces
 A DynamoDB Local example is provided under `examples/ddb/`, demonstrating how to wire custom stores into the server. 
 
 This is only a sample and not part of the core implementation.
+
+## License
+Copyright KEI SAWAMURA 2025.  
+Asteroid is licensed under the MIT License. Copying, and modifying is encouraged and appreciated.
