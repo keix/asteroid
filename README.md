@@ -1,5 +1,5 @@
 # Asteroid
-A minimal OpenID Connect (OIDC) Provider implementation written in Go using the Gin framework.
+An OpenID Connect (OIDC) Provider implementation written in Go using the Gin framework, intended to be forked as a starter template.
 
 ## Prerequisites
 - Go 1.22 or later
@@ -40,14 +40,6 @@ Asteroid is configured using environment variables:
 GET /.well-known/openid-configuration
 ```
 
-Returns metadata such as:
-- issuer
-- authorization endpoint
-- token endpoint
-- JWKS URI
-- supported response types
-- supported signing algorithms
-
 ### JSON Web Key Set (JWKS)
 ```
 GET /jwks.json
@@ -55,20 +47,34 @@ GET /jwks.json
 
 Public JWK used by clients and resource servers to validate tokens.
 
-## Docker
-Asteroid is not Dockerized by default.  
-It is intended as a minimal OIDC provider implementation in Go.
+### Authorization
+```
+GET /authorize
+```
 
-A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
+Implements the authorization code flow for a pre-seeded test user.  
+
+Query parameters:
+- `client_id` — must be a registered client
+- `redirect_uri` — must match one of the client's allowed URIs
+- `response_type` — only `code` is supported
+- `scope` — only `openid` is supported
+- `state` — optional value echoed back on redirect
+
+Returns HTTP redirects with `code` (and `state`) appended to the provided `redirect_uri`, or an error response if validation fails.
 
 ## Storage
-Asteroid does not enforce any particular storage backend.
+Asteroid defaults to in-memory stores, which are convenient for testing but non-persistent.
 
-The internal stores (users, clients, keys, auth codes) are defined as interfaces, and you can provide any implementation by passing your own struct instances.
+All stores (users, clients, keys, auth codes) are defined as interfaces, making it straightforward to plug in a real backend.
 
-A DynamoDB Local example is provided under `examples/ddb/`, demonstrating how to wire custom stores into the server. 
+A DynamoDB Local example is provided under examples/ddb/.
+DynamoDB + Go enables fast, scalable persistence and keeps identity data isolated from the main application.
 
-This is only a sample and not part of the core implementation.
+## Docker
+Asteroid is not Dockerized by default.  
+
+A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
 
 ## License
 Copyright KEI SAWAMURA 2025.  
