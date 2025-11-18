@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +29,7 @@ func NewAuthorizeHandler(
 	}
 }
 
-func (h *AuthorizeHandler) HandleAuthorize(c *gin.Context) {
+func (h *AuthorizeHandler) Handle(c *gin.Context) {
 	clientID := c.Query("client_id")
 	redirectURI := c.Query("redirect_uri")
 	responseType := c.Query("response_type")
@@ -56,14 +57,7 @@ func (h *AuthorizeHandler) HandleAuthorize(c *gin.Context) {
 		return
 	}
 
-	validRedirectURI := false
-	for _, uri := range client.RedirectURIs {
-		if uri == redirectURI {
-			validRedirectURI = true
-			break
-		}
-	}
-	if !validRedirectURI {
+	if !slices.Contains(client.RedirectURIs, redirectURI) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redirect_uri"})
 		return
 	}

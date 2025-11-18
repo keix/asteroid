@@ -15,12 +15,14 @@ func RegisterRoutes(
 	authCodeStore store.AuthCodeStore,
 	cfg config.Config,
 ) {
-	r.GET("/.well-known/openid-configuration",
-		oidc.WellKnownHandler(cfg.Issuer))
+	wellKnown := oidc.NewWellKnownHandler(cfg.Issuer)
+	jwks := oidc.NewJWKSHandler(keyStore)
+	authorize := oidc.NewAuthorizeHandler(clientStore, userStore, authCodeStore)
 
-	r.GET("/jwks.json",
-		oidc.JWKSHandler(keyStore))
-
-	authorizeHandler := oidc.NewAuthorizeHandler(clientStore, userStore, authCodeStore)
-	r.GET("/authorize", authorizeHandler.HandleAuthorize)
+	oidcGroup := r.Group("/")
+	{
+		oidcGroup.GET(".well-known/openid-configuration", wellKnown.Handle)
+		oidcGroup.GET("jwks.json", jwks.Handle)
+		oidcGroup.GET("authorize", authorize.Handle)
+	}
 }
