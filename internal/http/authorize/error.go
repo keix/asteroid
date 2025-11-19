@@ -27,16 +27,16 @@ func newOIDCError(code, description string) *OIDCError {
 var (
 	errInvalidRequest          = newOIDCError("invalid_request", "The request is missing a required parameter or includes an invalid parameter value")
 	errUnauthorizedClient      = newOIDCError("unauthorized_client", "The client is not authorized to request an authorization code using this method")
-	errAccessDenied           = newOIDCError("access_denied", "The resource owner or authorization server denied the request")
+	errAccessDenied            = newOIDCError("access_denied", "The resource owner or authorization server denied the request")
 	errUnsupportedResponseType = newOIDCError("unsupported_response_type", "The authorization server does not support obtaining an authorization code using this method")
-	errInvalidScope           = newOIDCError("invalid_scope", "The requested scope is invalid, unknown, or malformed")
-	errServerError            = newOIDCError("server_error", "The authorization server encountered an unexpected condition")
+	errInvalidScope            = newOIDCError("invalid_scope", "The requested scope is invalid, unknown, or malformed")
+	errServerError             = newOIDCError("server_error", "The authorization server encountered an unexpected condition")
 )
 
 // HandleDomainError handles domain errors and converts them to HTTP responses
 func HandleDomainError(c *gin.Context, errType authorize.ErrorType, req *Request) {
 	oidcErr := mapToOIDCError(errType)
-	
+
 	// If we have a valid redirect_uri, redirect with error (RFC 6749 Section 4.1.2.1)
 	if req.RedirectURI != "" && errType != authorize.ErrorInvalidRedirectURI {
 		redirectWithError(c, req.RedirectURI, oidcErr, req.State)
@@ -52,7 +52,7 @@ func HandleDomainError(c *gin.Context, errType authorize.ErrorType, req *Request
 func HandleSystemError(c *gin.Context, err error, req *Request) {
 	// TODO: Add proper error logging here
 	oidcErr := errServerError
-	
+
 	// System errors are always returned as JSON (don't redirect)
 	c.JSON(http.StatusInternalServerError, oidcErr)
 }
@@ -83,11 +83,11 @@ func mapToOIDCError(errType authorize.ErrorType) *OIDCError {
 func redirectWithError(c *gin.Context, redirectURI string, oidcErr *OIDCError, state string) {
 	params := url.Values{}
 	params.Set("error", oidcErr.Code)
-	
+
 	if oidcErr.Description != "" {
 		params.Set("error_description", oidcErr.Description)
 	}
-	
+
 	if state != "" {
 		params.Set("state", state)
 	}

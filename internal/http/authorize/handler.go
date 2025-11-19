@@ -28,7 +28,7 @@ func NewHandler(
 // Handle processes authorization HTTP requests
 func (h *Handler) Handle(c *gin.Context) {
 	httpReq := NewRequest(c)
-	
+
 	// Convert HTTP request to domain request
 	domainReq := &authorize.AuthorizeRequest{
 		ClientID:     httpReq.ClientID,
@@ -37,7 +37,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		Scope:        httpReq.Scope,
 		State:        httpReq.State,
 	}
-	
+
 	result, errType, err := h.service.Authorize(c.Request.Context(), domainReq)
 	if err != nil {
 		// System error
