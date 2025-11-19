@@ -1,0 +1,56 @@
+package authorize
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"asteroid/internal/oidc/authorize"
+	"asteroid/internal/store"
+)
+
+// Handler handles HTTP requests for authorization endpoint
+type Handler struct {
+	service *authorize.Service
+}
+
+// NewHandler creates a new authorization handler
+func NewHandler(
+	clientStore store.ClientStore,
+	userStore store.UserStore,
+	authCodeStore store.AuthCodeStore,
+) *Handler {
+	return &Handler{
+		service: authorize.NewService(clientStore, userStore, authCodeStore),
+	}
+}
+
+// Handle processes authorization HTTP requests
+func (h *Handler) Handle(c *gin.Context) {
+	httpReq := NewRequest(c)
+	
+	// Convert HTTP request to domain request
+	domainReq := &authorize.AuthorizeRequest{
+		ClientID:     httpReq.ClientID,
+		RedirectURI:  httpReq.RedirectURI,
+		ResponseType: httpReq.ResponseType,
+		Scope:        httpReq.Scope,
+		State:        httpReq.State,
+	}
+	
+	result, errType, err := h.service.Authorize(c.Request.Context(), domainReq)
+	if err != nil {
+		// System error
+		HandleSystemError(c, err, httpReq)
+		return
+	}
+
+	if errType != 0 { // ErrorType enum starts from 0, so non-zero means error
+		// Domain error
+		HandleDomainError(c, errType, httpReq)
+		return
+	}
+
+	// Success
+	c.Redirect(http.StatusFound, result.RedirectURL)
+}

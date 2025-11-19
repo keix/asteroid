@@ -2,6 +2,7 @@ package http
 
 import (
 	"asteroid/internal/config"
+	"asteroid/internal/http/authorize"
 	"asteroid/internal/oidc"
 	"asteroid/internal/store"
 	"github.com/gin-gonic/gin"
@@ -17,12 +18,12 @@ func RegisterRoutes(
 ) {
 	wellKnown := oidc.NewWellKnownHandler(cfg.Issuer)
 	jwks := oidc.NewJWKSHandler(keyStore)
-	authorize := oidc.NewAuthorizeHandler(clientStore, userStore, authCodeStore)
+	authorizeHandler := authorize.NewHandler(clientStore, userStore, authCodeStore)
 
 	oidcGroup := r.Group("/")
 	{
 		oidcGroup.GET(".well-known/openid-configuration", wellKnown.Handle)
 		oidcGroup.GET("jwks.json", jwks.Handle)
-		oidcGroup.GET("authorize", authorize.Handle)
+		oidcGroup.GET("authorize", authorizeHandler.Handle)
 	}
 }
