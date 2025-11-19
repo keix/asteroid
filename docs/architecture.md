@@ -14,8 +14,6 @@ sequenceDiagram
     Note over User,Store: Discovery Phase
     Client->>Asteroid: GET /.well-known/openid-configuration
     Asteroid->>Client: OIDC Discovery Document
-    Client->>Asteroid: GET /jwks.json
-    Asteroid->>Client: JSON Web Key Set
 
     Note over User,Store: Authorization Phase
     User->>Client: Login Request
@@ -42,6 +40,11 @@ sequenceDiagram
     Store->>Asteroid: AuthCode Details
     Asteroid->>Store: DeleteAuthCode(code)
     Asteroid->>Client: ID Token + Access Token
+
+    Note over User,Store: Token Verification
+    Client->>Asteroid: GET /jwks.json
+    Asteroid->>Client: JSON Web Key Set
+    Client->>Client: Verify ID Token Signature
 ```
 
 ## Current Implementation Status
