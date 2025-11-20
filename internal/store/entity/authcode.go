@@ -1,21 +1,8 @@
-package store
+package entity
 
 import "time"
 
-type User struct {
-	ID           string    `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"password_hash"`
-	CreatedAt    time.Time `json:"created_at"`
-}
-
-type Client struct {
-	ID           string   `json:"id"`
-	Secret       string   `json:"secret"`
-	RedirectURIs []string `json:"redirect_uris"`
-	Name         string   `json:"name"`
-}
-
+// AuthCode represents an OAuth 2.0 authorization code entity
 type AuthCode struct {
 	Code                string    `json:"code"`
 	ClientID            string    `json:"client_id"`

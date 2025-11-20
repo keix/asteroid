@@ -1,4 +1,4 @@
-package store
+package memory
 
 import (
 	"context"
@@ -11,12 +11,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type LocalKeyStore struct {
+type KeyStore struct {
 	privateKey *rsa.PrivateKey
 	kid        string
 }
 
-func NewLocalKeyStore(path string) (KeyStore, error) {
+func NewKeyStore(path string) (*KeyStore, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -29,17 +29,17 @@ func NewLocalKeyStore(path string) (KeyStore, error) {
 
 	kid := generateKID(priv.PublicKey)
 
-	return &LocalKeyStore{
+	return &KeyStore{
 		privateKey: priv,
 		kid:        kid,
 	}, nil
 }
 
-func (s *LocalKeyStore) GetSigningKey(ctx context.Context) (*rsa.PrivateKey, error) {
+func (s *KeyStore) GetSigningKey(ctx context.Context) (*rsa.PrivateKey, error) {
 	return s.privateKey, nil
 }
 
-func (s *LocalKeyStore) GetKid(ctx context.Context) (string, error) {
+func (s *KeyStore) GetKid(ctx context.Context) (string, error) {
 	return s.kid, nil
 }
 

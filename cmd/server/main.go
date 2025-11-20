@@ -5,21 +5,22 @@ import (
 
 	"asteroid/internal/config"
 	"asteroid/internal/http"
-	"asteroid/internal/store"
+	"asteroid/internal/store/entity"
+	"asteroid/internal/store/memory"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	cfg := config.Load()
 
-	keyStore, err := store.NewLocalKeyStore(cfg.PrivateKeyPath)
+	keyStore, err := memory.NewKeyStore(cfg.PrivateKeyPath)
 	if err != nil {
 		log.Fatalf("failed to load private key: %v", err)
 	}
 
-	userStore := store.NewMemoryUserStore()
-	clientStore := store.NewMemoryClientStore()
-	authCodeStore := store.NewMemoryAuthCodeStore()
+	userStore := memory.NewUserStore()
+	clientStore := memory.NewClientStore()
+	authCodeStore := memory.NewAuthCodeStore()
 
 	setupTestData(userStore, clientStore)
 
@@ -30,14 +31,14 @@ func main() {
 	r.Run(":8880")
 }
 
-func setupTestData(userStore *store.MemoryUserStore, clientStore *store.MemoryClientStore) {
-	testUser := &store.User{
+func setupTestData(userStore *memory.UserStore, clientStore *memory.ClientStore) {
+	testUser := &entity.User{
 		ID:    "user-123",
 		Email: "test@example.com",
 	}
 	userStore.SaveUser(testUser)
 
-	testClient := &store.Client{
+	testClient := &entity.Client{
 		ID:           "test-client",
 		Secret:       "test-secret",
 		RedirectURIs: []string{"http://localhost:3000/callback"},

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"asteroid/internal/store"
+	"asteroid/internal/store/entity"
 )
 
 // Service handles authorization business logic
@@ -60,7 +61,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	// Get and validate client
 	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
 	if err != nil {
-		if errors.Is(err, store.ErrClientNotFound) {
+		if errors.Is(err, entity.ErrClientNotFound) {
 			return nil, ErrorInvalidClient, nil
 		}
 		return nil, 0, err
@@ -74,7 +75,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	// Get user (simplified authentication)
 	user, err := s.UserStore.GetUserByID(ctx, "user-123")
 	if err != nil {
-		if errors.Is(err, store.ErrUserNotFound) {
+		if errors.Is(err, entity.ErrUserNotFound) {
 			return nil, ErrorAccessDenied, nil
 		}
 		return nil, 0, err
@@ -82,7 +83,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 
 	// Generate authorization code
 	code := uuid.NewString()
-	authCode := &store.AuthCode{
+	authCode := &entity.AuthCode{
 		Code:        code,
 		ClientID:    client.ID,
 		UserID:      user.ID,
