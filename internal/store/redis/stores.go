@@ -25,5 +25,6 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 		User:     NewUserStore(),
 		Client:   NewClientStore(),
 		AuthCode: NewAuthCodeStore(redisClient),
+		Token:    NewTokenStore(redisClient),
 	}, nil
 }
