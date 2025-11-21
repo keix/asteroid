@@ -22,7 +22,7 @@ func NewService(keyStore store.KeyStore) *Service {
 }
 
 // GetJWKSet retrieves the JSON Web Key Set (pure business logic)
-func (s *Service) GetJWKSet(ctx context.Context) (*JWKSet, error) {
+func (s *Service) GetJWKSet(ctx context.Context) (*JWKS, error) {
 	// Get signing key
 	privateKey, err := s.keyStore.GetSigningKey(ctx)
 	if err != nil {
@@ -38,7 +38,7 @@ func (s *Service) GetJWKSet(ctx context.Context) (*JWKSet, error) {
 	// Convert RSA public key to JWK
 	jwk := s.rsaToJWK(privateKey, kid)
 
-	return &JWKSet{
+	return &JWKS{
 		Keys: []JWK{jwk},
 	}, nil
 }

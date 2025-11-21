@@ -64,16 +64,18 @@ Query parameters:
 Returns HTTP redirects with `code` (and `state`) appended to the provided `redirect_uri`, or an error response if validation fails.
 
 ## Storage
-Asteroid defaults to in-memory stores, which are convenient for testing but non-persistent.
+A storage backend can be selected at build time:
 
-All stores (users, clients, keys, auth codes) are defined as interfaces, making it straightforward to plug in a real backend.
+```
+go build -tags [memory, redis, dynamodb] -o bin/asteroid ./cmd/server
+```
 
-A DynamoDB Local example is provided under examples/ddb/.
-DynamoDB + Go enables fast, scalable persistence and keeps identity data isolated from the main application.
+Redis provides fast, TTL-based persistence and is recommended for production-grade authorization code and token storage.
 
 ## Docker
 Asteroid is not Dockerized by default. A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
 
+Example configurations for Redis and DynamoDB Local are available under `examples/docker/`.
 ## Security Note
 Asteroid loads the RSA private key once at startup and keeps it in memory.
 

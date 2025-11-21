@@ -10,7 +10,7 @@ type JWK struct {
 	E   string `json:"e"`   // Exponent (for RSA)
 }
 
-// JWKSet represents a JSON Web Key Set
-type JWKSet struct {
+// JWKS represents a JSON Web Key Set
+type JWKS struct {
 	Keys []JWK `json:"keys"`
 }
