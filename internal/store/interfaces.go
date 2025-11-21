@@ -27,9 +27,17 @@ type AuthCodeStore interface {
 	DeleteAuthCode(ctx context.Context, code string) error
 }
 
+type TokenStore interface {
+	SaveAccessToken(ctx context.Context, token *entity.AccessToken) error
+	SaveRefreshToken(ctx context.Context, token *entity.RefreshToken) error
+	GetRefreshToken(ctx context.Context, token string) (*entity.RefreshToken, error)
+	DeleteRefreshToken(ctx context.Context, token string) error
+}
+
 type Stores struct {
 	Key      KeyStore
 	User     UserStore
 	Client   ClientStore
 	AuthCode AuthCodeStore
+	Token    TokenStore
 }

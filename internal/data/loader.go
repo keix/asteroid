@@ -44,7 +44,9 @@ func loadUsers(ctx context.Context, stores *store.Stores, filepath string) error
 	}
 
 	// Type assert to access SaveUser method
-	if userStore, ok := stores.User.(interface{ SaveUser(context.Context, *entity.User) error }); ok {
+	if userStore, ok := stores.User.(interface {
+		SaveUser(context.Context, *entity.User) error
+	}); ok {
 		for i := range userData.Users {
 			user := &userData.Users[i]
 			// Parse created_at if it's a string
@@ -72,7 +74,9 @@ func loadClients(ctx context.Context, stores *store.Stores, filepath string) err
 	}
 
 	// Type assert to access SaveClient method
-	if clientStore, ok := stores.Client.(interface{ SaveClient(context.Context, *entity.Client) error }); ok {
+	if clientStore, ok := stores.Client.(interface {
+		SaveClient(context.Context, *entity.Client) error
+	}); ok {
 		for i := range clientData.Clients {
 			client := &clientData.Clients[i]
 			if err := clientStore.SaveClient(ctx, client); err != nil {

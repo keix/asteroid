@@ -29,5 +29,6 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 		User:     NewUserStore(),
 		Client:   NewClientStore(),
 		AuthCode: NewAuthCodeStore(client, cfg.DynamoDBAuthCodeTable),
+		Token:    NewTokenStore(client, cfg.DynamoDBAccessTokenTable, cfg.DynamoDBRefreshTokenTable),
 	}, nil
 }
