@@ -6,6 +6,7 @@ import (
 	"asteroid/internal/http/jwks"
 	"asteroid/internal/http/token"
 	"asteroid/internal/http/wellknown"
+	"asteroid/internal/oidc/jwt"
 	"asteroid/internal/store"
 	"github.com/gin-gonic/gin"
 )
@@ -19,10 +20,12 @@ func RegisterRoutes(
 	tokenStore store.TokenStore,
 	cfg config.Config,
 ) {
+	jwtService := jwt.NewService(keyStore, cfg.Issuer)
+
 	wellKnownHandler := wellknown.NewHandler(cfg.Issuer)
 	jwksHandler := jwks.NewHandler(keyStore)
 	authorizeHandler := authorize.NewHandler(clientStore, userStore, authCodeStore)
-	tokenHandler := token.NewHandler(authCodeStore, tokenStore, clientStore)
+	tokenHandler := token.NewHandler(authCodeStore, tokenStore, clientStore, jwtService)
 
 	oidcGroup := r.Group("/")
 	{
