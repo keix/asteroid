@@ -18,14 +18,12 @@ func (s *Service) GetOpenIDConfiguration() *OpenIDConfiguration {
 		Issuer:                            s.issuer,
 		AuthorizationEndpoint:             s.issuer + "/authorize",
 		TokenEndpoint:                     s.issuer + "/token",
-		UserinfoEndpoint:                  s.issuer + "/userinfo",
 		JwksURI:                           s.issuer + "/jwks.json",
 		ResponseTypesSupported:            []string{"code"},
 		SubjectTypesSupported:             []string{"public"},
 		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
-		ScopesSupported:                   []string{"openid", "profile", "email"},
-		TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
-		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"},
-		CodeChallengeMethodsSupported:     []string{"plain", "S256"},
+		ScopesSupported:                   []string{"openid"},
+		TokenEndpointAuthMethodsSupported: []string{"client_secret_post"},
+		ResponseModesSupported:            []string{"query"},
 	}
 }

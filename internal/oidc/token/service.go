@@ -3,10 +3,12 @@ package token
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"asteroid/internal/oidc/jwt"
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
 )
@@ -16,6 +18,7 @@ type Service struct {
 	AuthCodeStore store.AuthCodeStore
 	TokenStore    store.TokenStore
 	ClientStore   store.ClientStore
+	JWTService    *jwt.Service
 }
 
 // NewService creates a new token service
@@ -23,11 +26,13 @@ func NewService(
 	authCodeStore store.AuthCodeStore,
 	tokenStore store.TokenStore,
 	clientStore store.ClientStore,
+	jwtService *jwt.Service,
 ) *Service {
 	return &Service{
 		AuthCodeStore: authCodeStore,
 		TokenStore:    tokenStore,
 		ClientStore:   clientStore,
+		JWTService:    jwtService,
 	}
 }
 
@@ -128,13 +133,24 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		return nil, 0, err
 	}
 
-	return &Result{
+	result := &Result{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    3600, // 1 hour
 		RefreshToken: refreshToken,
 		Scope:        authCode.Scope,
-	}, 0, nil
+	}
+
+	// Generate ID Token if openid scope is requested
+	if strings.Contains(authCode.Scope, "openid") {
+		idToken, err := s.JWTService.GenerateIDToken(ctx, authCode.UserID, authCode.ClientID, "")
+		if err != nil {
+			return nil, 0, err
+		}
+		result.IDToken = idToken
+	}
+
+	return result, 0, nil
 }
 
 func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result, ErrorType, error) {
@@ -205,11 +221,22 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 		return nil, 0, err
 	}
 
-	return &Result{
+	result := &Result{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    3600, // 1 hour
 		RefreshToken: newRefreshToken,
 		Scope:        refreshTokenEntity.Scope,
-	}, 0, nil
+	}
+
+	// Generate ID Token if openid scope is requested
+	if strings.Contains(refreshTokenEntity.Scope, "openid") {
+		idToken, err := s.JWTService.GenerateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
+		if err != nil {
+			return nil, 0, err
+		}
+		result.IDToken = idToken
+	}
+
+	return result, 0, nil
 }

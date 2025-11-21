@@ -34,12 +34,16 @@ sequenceDiagram
         Asteroid->>User: Error Response
     end
 
-    Note over User,Store: Token Exchange (Future Implementation)
+    Note over User,Store: Token Exchange
     Client->>Asteroid: POST /token (code, client_secret)
     Asteroid->>Store: GetAuthCode(code)
     Store->>Asteroid: AuthCode Details
     Asteroid->>Store: DeleteAuthCode(code)
-    Asteroid->>Client: ID Token + Access Token
+    Asteroid->>Store: SaveAccessToken(access_token)
+    Asteroid->>Store: SaveRefreshToken(refresh_token)
+    Store->>Asteroid: Success
+    Asteroid->>Asteroid: Generate ID Token (JWT)
+    Asteroid->>Client: Access Token + Refresh Token + ID Token
 
     Note over User,Store: Token Verification
     Client->>Asteroid: GET /jwks.json
@@ -53,25 +57,68 @@ sequenceDiagram
 - OIDC Discovery (/.well-known/openid-configuration)
 - JWKS endpoint (/jwks.json)
 - Authorization endpoint (/authorize)
-- Memory-based stores for users, clients, auth codes
+- Token endpoint (/token)
+- ID Token generation (JWT with RS256 signature)
+- Multiple storage backends (memory, Redis, DynamoDB)
+- Authorization code and refresh token flows
+- Access and refresh token generation
+- Client authentication and validation
 - RSA key management
-- Authorization code generation and storage
+- Automatic token cleanup and expiration
+- Complete OIDC Core 1.0 compliance
 
 ### Future Implementation
-- Token endpoint (/token)
 - UserInfo endpoint (/userinfo)
-- ID Token generation (JWT)
-- Access token validation
-- Refresh token support
-- Proper user authentication
-- Client secret validation
+- Access token validation middleware
+- Dynamic user authentication (currently fixed to "user-123")
 - PKCE support
-- Scope handling beyond 'openid'
+- Extended scope handling (profile, email)
+- Additional response modes (fragment, form_post)
+- Nonce parameter support in ID tokens
+- Additional JWT claims (name, email, etc.)
+
+## ID Token Details
+
+Asteroid generates OIDC-compliant ID tokens as JWTs with the following characteristics:
+
+### JWT Header
+```json
+{
+  "alg": "RS256",
+  "kid": "unique-key-id",
+  "typ": "JWT"
+}
+```
+
+### JWT Claims
+```json
+{
+  "iss": "http://localhost:8880",     // Issuer (configurable)
+  "sub": "user-123",                  // Subject (user ID)
+  "aud": "test-client",               // Audience (client ID)
+  "exp": 1763746030,                  // Expiration time (1 hour)
+  "iat": 1763742430,                  // Issued at time
+  "auth_time": 1763742430             // Authentication time
+}
+```
+
+### Verification
+- ID tokens are signed with RSA private key using RS256 algorithm
+- Public key for verification is available at `/jwks.json` endpoint
+- Key ID (`kid`) in JWT header matches the one in JWKS
+- Standard JWT validation applies (signature, expiration, issuer, audience)
 
 ## Security Considerations
 
-- Fixed user authentication (user-123) - for development only
+- Dummy user authentication (pre-seeded users from YAML) - for development only
 - Auth codes expire after 5 minutes
-- Automatic cleanup of expired auth codes
-- RSA key-based JWT signing
+- Access tokens expire after 1 hour
+- Refresh tokens expire after 30 days
+- ID tokens expire after 1 hour
+- Automatic cleanup of expired tokens and auth codes
+- Client secret validation for token exchange
+- RSA key-based JWT signing (RS256) for ID tokens
 - Redirect URI validation against registered URIs
+- TTL-based token storage with automatic expiration
+- JWT signature verification via JWKS endpoint
+- Standard OIDC claims in ID tokens (iss, sub, aud, exp, iat, auth_time)

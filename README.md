@@ -35,17 +35,12 @@ Asteroid is configured using environment variables:
 
 ## Available Endpoints
 
+For detailed flow diagrams and architecture documentation, see [`docs/architecture.md`](docs/architecture.md).
+
 ### OpenID Connect Discovery
 ```
 GET /.well-known/openid-configuration
 ```
-
-### JSON Web Key Set (JWKS)
-```
-GET /jwks.json
-```
-
-Public JWK used by clients and resource servers to validate tokens.
 
 ### Authorization
 ```
@@ -62,6 +57,35 @@ Query parameters:
 - `state` — optional value echoed back on redirect
 
 Returns HTTP redirects with `code` (and `state`) appended to the provided `redirect_uri`, or an error response if validation fails.
+
+### Token Exchange
+```
+POST /token
+```
+
+Exchanges authorization codes for access and refresh tokens, or refreshes existing tokens.
+
+Form parameters:
+- `grant_type` — `authorization_code` or `refresh_token`
+- `client_id` — registered client identifier
+- `client_secret` — client authentication secret
+
+For authorization code grant:
+- `code` — authorization code from `/authorize` endpoint
+- `redirect_uri` — must match the original authorization request
+
+For refresh token grant:
+- `refresh_token` — valid refresh token
+
+Returns JSON with `access_token`, `token_type`, `expires_in`, `refresh_token`, and `scope`.
+
+
+### JSON Web Key Set (JWKS)
+```
+GET /jwks.json
+```
+
+Public JWK used by clients and resource servers to validate tokens.
 
 ## Storage
 A storage backend can be selected at build time:
