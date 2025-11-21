@@ -1,42 +1,51 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"asteroid/internal/config"
 	"asteroid/internal/http"
+	"asteroid/internal/store"
+	"asteroid/internal/store/dynamodb"
 	"asteroid/internal/store/entity"
-	"asteroid/internal/store/memory"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	cfg := config.Load()
 
-	keyStore, err := memory.NewKeyStore(cfg.PrivateKeyPath)
+	stores, err := dynamodb.NewStores(&cfg)
 	if err != nil {
-		log.Fatalf("failed to load private key: %v", err)
+		log.Fatalf("failed to initialize stores: %v", err)
 	}
 
-	userStore := memory.NewUserStore()
-	clientStore := memory.NewClientStore()
-	authCodeStore := memory.NewAuthCodeStore()
-
-	setupTestData(userStore, clientStore)
+	err = setupTestData(stores)
+	if err != nil {
+		log.Fatalf("failed to setup test data: %v", err)
+	}
 
 	r := gin.Default()
-	http.RegisterRoutes(r, keyStore, userStore, clientStore, authCodeStore, cfg)
+	http.RegisterRoutes(r, stores.Key, stores.User, stores.Client, stores.AuthCode, cfg)
 
 	log.Println("Asteroid OIDC Provider running on :8880")
 	r.Run(":8880")
 }
 
-func setupTestData(userStore *memory.UserStore, clientStore *memory.ClientStore) {
+func setupTestData(stores *store.Stores) error {
 	testUser := &entity.User{
 		ID:    "user-123",
 		Email: "test@example.com",
 	}
-	userStore.SaveUser(testUser)
+
+	// Type assert to access SaveUser method
+	if userStore, ok := stores.User.(interface {
+		SaveUser(context.Context, *entity.User) error
+	}); ok {
+		if err := userStore.SaveUser(context.Background(), testUser); err != nil {
+			return err
+		}
+	}
 
 	testClient := &entity.Client{
 		ID:           "test-client",
@@ -44,5 +53,15 @@ func setupTestData(userStore *memory.UserStore, clientStore *memory.ClientStore)
 		RedirectURIs: []string{"http://localhost:3000/callback"},
 		Name:         "Test Client",
 	}
-	clientStore.SaveClient(testClient)
+
+	// Type assert to access SaveClient method
+	if clientStore, ok := stores.Client.(interface {
+		SaveClient(context.Context, *entity.Client) error
+	}); ok {
+		if err := clientStore.SaveClient(context.Background(), testClient); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
