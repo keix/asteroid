@@ -93,12 +93,12 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 ### JWT Claims
 ```json
 {
-  "iss": "http://localhost:8880",     // Issuer (configurable)
-  "sub": "user-123",                  // Subject (user ID)
-  "aud": "test-client",               // Audience (client ID)
-  "exp": 1763746030,                  // Expiration time (1 hour)
-  "iat": 1763742430,                  // Issued at time
-  "auth_time": 1763742430             // Authentication time
+  "iss": "http://localhost:8880",
+  "sub": "user-123",
+  "aud": "test-client",
+  "exp": 1763746030,
+  "iat": 1763742430,
+  "auth_time": 1763742430
 }
 ```
 
