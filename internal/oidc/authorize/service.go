@@ -3,7 +3,6 @@ package authorize
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"time"
 

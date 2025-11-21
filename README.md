@@ -2,7 +2,7 @@
 An OpenID Connect (OIDC) Provider implementation written in Go using the Gin framework.
 
 ## Prerequisites
-- Go 1.22 or later
+- Go 1.24 or later (Tested with Go 1.24.6)
 - OpenSSL (for generating RSA private keys)
 
 ## Running Locally
