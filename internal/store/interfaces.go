@@ -26,3 +26,10 @@ type AuthCodeStore interface {
 	GetAuthCode(ctx context.Context, code string) (*entity.AuthCode, error)
 	DeleteAuthCode(ctx context.Context, code string) error
 }
+
+type Stores struct {
+	Key      KeyStore
+	User     UserStore
+	Client   ClientStore
+	AuthCode AuthCodeStore
+}

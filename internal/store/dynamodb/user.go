@@ -74,11 +74,16 @@ func (s *UserStore) GetUserByEmail(ctx context.Context, email string) (*entity.U
 	return &user, nil
 }
 
-func (s *UserStore) SaveUser(user *entity.User) {
-	// Note: This should return error in real implementation
-	item, _ := attributevalue.MarshalMap(user)
-	s.client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+func (s *UserStore) SaveUser(ctx context.Context, user *entity.User) error {
+	item, err := attributevalue.MarshalMap(user)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(s.tableName),
 		Item:      item,
 	})
+
+	return err
 }

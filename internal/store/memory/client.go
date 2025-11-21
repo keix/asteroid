@@ -29,9 +29,10 @@ func (s *ClientStore) GetClient(ctx context.Context, id string) (*entity.Client,
 	return client, nil
 }
 
-func (s *ClientStore) SaveClient(client *entity.Client) {
+func (s *ClientStore) SaveClient(ctx context.Context, client *entity.Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.clients[client.ID] = client
+	return nil
 }

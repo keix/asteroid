@@ -42,10 +42,11 @@ func (s *UserStore) GetUserByEmail(ctx context.Context, email string) (*entity.U
 	return user, nil
 }
 
-func (s *UserStore) SaveUser(user *entity.User) {
+func (s *UserStore) SaveUser(ctx context.Context, user *entity.User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.users[user.ID] = user
 	s.byEmail[user.Email] = user
+	return nil
 }
