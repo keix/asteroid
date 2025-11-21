@@ -7,7 +7,7 @@ import (
 	"asteroid/internal/config"
 	"asteroid/internal/http"
 	"asteroid/internal/store"
-	"asteroid/internal/store/dynamodb"
+	"asteroid/internal/store/driver"
 	"asteroid/internal/store/entity"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ import (
 func main() {
 	cfg := config.Load()
 
-	stores, err := dynamodb.NewStores(&cfg)
+	stores, err := driver.NewStores(&cfg)
 	if err != nil {
 		log.Fatalf("failed to initialize stores: %v", err)
 	}
