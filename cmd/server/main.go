@@ -1,28 +1,41 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"asteroid/internal/config"
 	"asteroid/internal/http"
+	dynamodbstore "asteroid/internal/store/dynamodb"
 	"asteroid/internal/store/entity"
-	"asteroid/internal/store/memory"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	cfg := config.Load()
 
-	keyStore, err := memory.NewKeyStore(cfg.PrivateKeyPath)
+	// Initialize AWS config
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
+		awsconfig.WithRegion(cfg.DynamoDBRegion),
+	)
 	if err != nil {
-		log.Fatalf("failed to load private key: %v", err)
+		log.Fatalf("failed to load AWS config: %v", err)
 	}
 
-	userStore := memory.NewUserStore()
-	clientStore := memory.NewClientStore()
-	authCodeStore := memory.NewAuthCodeStore()
+	// Create DynamoDB client
+	dynamoClient := dynamodb.NewFromConfig(awsCfg)
 
-	setupTestData(userStore, clientStore)
+	keyStore := dynamodbstore.NewKeyStore(dynamoClient, cfg.DynamoDBKeysTable, cfg.DynamoDBKeyID)
+	userStore := dynamodbstore.NewUserStore(dynamoClient, cfg.DynamoDBUsersTable)
+	clientStore := dynamodbstore.NewClientStore(dynamoClient, cfg.DynamoDBClientsTable)
+	authCodeStore := dynamodbstore.NewAuthCodeStore(dynamoClient, cfg.DynamoDBAuthCodeTable)
+
+	err = setupTestData(userStore, clientStore)
+	if err != nil {
+		log.Fatalf("failed to setup test data: %v", err)
+	}
 
 	r := gin.Default()
 	http.RegisterRoutes(r, keyStore, userStore, clientStore, authCodeStore, cfg)
@@ -31,7 +44,7 @@ func main() {
 	r.Run(":8880")
 }
 
-func setupTestData(userStore *memory.UserStore, clientStore *memory.ClientStore) {
+func setupTestData(userStore *dynamodbstore.UserStore, clientStore *dynamodbstore.ClientStore) error {
 	testUser := &entity.User{
 		ID:    "user-123",
 		Email: "test@example.com",
@@ -45,4 +58,6 @@ func setupTestData(userStore *memory.UserStore, clientStore *memory.ClientStore)
 		Name:         "Test Client",
 	}
 	clientStore.SaveClient(testClient)
+
+	return nil
 }
