@@ -1,0 +1,12 @@
+clients:
+  - id: asteroid-demo
+    secret: demo-secret-key-2025
+    name: Asteroid Demo Client
+    redirect_uris:
+      - http://localhost:3000/callback
+      - http://localhost:8080/auth/callback
+  - id: test-client
+    secret: test-secret
+    name: Test Client
+    redirect_uris:
+      - http://localhost:3000/callback

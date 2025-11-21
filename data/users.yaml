@@ -1,0 +1,9 @@
+users:
+  - id: user-123
+    email: admin@asteroid.local
+    password_hash: $2a$12$8nG6qLZZ2kXzGfHQVwxVz.5kI8yYjKBnMzLjCHuP3qYKYcZjk7Y4W
+    created_at: "2025-01-01T00:00:00Z"
+  - id: user-456
+    email: demo@asteroid.local
+    password_hash: $2a$12$9mH7rM0A3lY0HgGRUwxWa.6lJ9zZkLCoOaNkMDvQ4rZLZdAkm8Z5X
+    created_at: "2025-01-01T00:00:00Z"
