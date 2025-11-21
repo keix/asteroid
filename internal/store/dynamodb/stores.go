@@ -19,10 +19,15 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 
 	client := dynamodb.NewFromConfig(awsCfg)
 
+	keyStore, err := NewKeyStore(cfg.PrivateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &store.Stores{
-		Key:      NewKeyStore(client, cfg.DynamoDBKeysTable, cfg.DynamoDBKeyID),
-		User:     NewUserStore(client, cfg.DynamoDBUsersTable),
-		Client:   NewClientStore(client, cfg.DynamoDBClientsTable),
+		Key:      keyStore,
+		User:     NewUserStore(),
+		Client:   NewClientStore(),
 		AuthCode: NewAuthCodeStore(client, cfg.DynamoDBAuthCodeTable),
 	}, nil
 }
