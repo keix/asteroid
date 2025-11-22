@@ -1,5 +1,5 @@
 # Asteroid
-A fully compliant OpenID Connect Core 1.0 Provider implementation written in Go using the Gin framework.
+An OpenID Connect Core 1.0 Provider implementation written in Go using the Gin framework.
 
 ## Prerequisites
 - Go 1.24 or later (Tested with Go 1.24.6)
