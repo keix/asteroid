@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"asteroid/internal/config"
-	"asteroid/internal/data"
 	"asteroid/internal/http"
+	"asteroid/internal/loader/data"
 	"asteroid/internal/store"
 	"asteroid/internal/store/driver"
 	"github.com/gin-gonic/gin"
@@ -33,5 +33,6 @@ func main() {
 }
 
 func setupSeedData(stores *store.Stores) error {
-	return data.LoadSeedData(context.Background(), stores, "./data")
+	loader := data.NewLoader("./data")
+	return loader.LoadAll(context.Background(), stores)
 }

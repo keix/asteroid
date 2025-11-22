@@ -25,10 +25,8 @@ func NewHandler(keyStore store.KeyStore) *Handler {
 func (h *Handler) Handle(c *gin.Context) {
 	jwkSet, err := h.service.GetJWKSet(c.Request.Context())
 	if err != nil {
-		// System error - return generic server error
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to get signing key",
-		})
+		// System error
+		HandleSystemError(c, err)
 		return
 	}
 

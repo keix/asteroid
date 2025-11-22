@@ -3,12 +3,8 @@ package memory
 import (
 	"context"
 	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
-	"math/big"
-	"os"
 
-	"github.com/golang-jwt/jwt/v5"
+	"asteroid/internal/loader/key"
 )
 
 type KeyStore struct {
@@ -17,20 +13,13 @@ type KeyStore struct {
 }
 
 func NewKeyStore(path string) (*KeyStore, error) {
-	b, err := os.ReadFile(path)
+	privateKey, kid, err := key.LoadRSAKey(key.LoaderTypeFile, path)
 	if err != nil {
 		return nil, err
 	}
-
-	priv, err := jwt.ParseRSAPrivateKeyFromPEM(b)
-	if err != nil {
-		return nil, err
-	}
-
-	kid := generateKID(priv.PublicKey)
 
 	return &KeyStore{
-		privateKey: priv,
+		privateKey: privateKey,
 		kid:        kid,
 	}, nil
 }
@@ -41,13 +30,4 @@ func (s *KeyStore) GetSigningKey(ctx context.Context) (*rsa.PrivateKey, error) {
 
 func (s *KeyStore) GetKid(ctx context.Context) (string, error) {
 	return s.kid, nil
-}
-
-func generateKID(pub rsa.PublicKey) string {
-	n := base64.RawURLEncoding.EncodeToString(pub.N.Bytes())
-	eBytes := big.NewInt(int64(pub.E)).Bytes()
-	e := base64.RawURLEncoding.EncodeToString(eBytes)
-
-	sum := sha256.Sum256([]byte(n + e))
-	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

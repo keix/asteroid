@@ -193,7 +193,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 
 	// Generate new tokens
 	accessToken := uuid.NewString()
-	newRefreshToken := uuid.NewString()
+	refreshToken := uuid.NewString()
 	now := time.Now()
 
 	accessTokenEntity := &entity.AccessToken{
@@ -205,7 +205,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	}
 
 	newRefreshTokenEntity := &entity.RefreshToken{
-		Token:     newRefreshToken,
+		Token:     refreshToken,
 		ClientID:  refreshTokenEntity.ClientID,
 		UserID:    refreshTokenEntity.UserID,
 		Scope:     refreshTokenEntity.Scope,
@@ -224,7 +224,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    3600, // 1 hour
-		RefreshToken: newRefreshToken,
+		RefreshToken: refreshToken,
 		Scope:        refreshTokenEntity.Scope,
 	}
 
