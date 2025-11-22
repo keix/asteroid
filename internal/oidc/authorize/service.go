@@ -79,6 +79,18 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, ErrorInvalidScope, nil
 	}
 
+	// SECURITY: PKCE (RFC 7636) validation for code interception protection
+	if req.CodeChallenge != "" {
+		// If code_challenge is provided, validate the method
+		if req.CodeChallengeMethod != "S256" && req.CodeChallengeMethod != "plain" {
+			return nil, ErrorInvalidRequest, nil
+		}
+		// Reject 'plain' method for security (only allow S256)
+		if req.CodeChallengeMethod == "plain" {
+			return nil, ErrorInvalidRequest, nil
+		}
+	}
+
 	// Get and validate client
 	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
 	if err != nil {

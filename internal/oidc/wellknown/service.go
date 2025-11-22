@@ -25,5 +25,7 @@ func (s *Service) GetOpenIDConfiguration() *OpenIDConfiguration {
 		ScopesSupported:                   []string{"openid"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post"},
 		ResponseModesSupported:            []string{"query"},
+		CodeChallengeMethodsSupported:     []string{"S256"},
+		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"},
 	}
 }
