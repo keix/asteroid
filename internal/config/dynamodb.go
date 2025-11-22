@@ -15,6 +15,7 @@ type Config struct {
 	DynamoDBAuthCodeTable     string
 	DynamoDBAccessTokenTable  string
 	DynamoDBRefreshTokenTable string
+	DynamoDBNonceTable        string
 	DynamoDBKeyID             string
 }
 
@@ -30,6 +31,7 @@ func Load() Config {
 		DynamoDBAuthCodeTable:     getenv("DYNAMODB_AUTHCODE_TABLE", "asteroid-authcodes"),
 		DynamoDBAccessTokenTable:  getenv("DYNAMODB_ACCESSTOKEN_TABLE", "asteroid-accesstokens"),
 		DynamoDBRefreshTokenTable: getenv("DYNAMODB_REFRESHTOKEN_TABLE", "asteroid-refreshtokens"),
+		DynamoDBNonceTable:        getenv("DYNAMODB_NONCE_TABLE", "asteroid-nonces"),
 		DynamoDBKeyID:             getenv("DYNAMODB_KEY_ID", "primary-key"),
 	}
 }

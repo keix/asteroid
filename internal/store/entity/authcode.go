@@ -11,5 +11,7 @@ type AuthCode struct {
 	CodeChallenge       string    `json:"code_challenge" dynamodbav:"code_challenge"`
 	CodeChallengeMethod string    `json:"code_challenge_method" dynamodbav:"code_challenge_method"`
 	Scope               string    `json:"scope" dynamodbav:"scope"`
+	State               string    `json:"state" dynamodbav:"state"`
+	Nonce               string    `json:"nonce" dynamodbav:"nonce"`
 	ExpiresAt           time.Time `json:"expires_at" dynamodbav:"expires_at"`
 }

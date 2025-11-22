@@ -19,9 +19,10 @@ func NewHandler(
 	clientStore store.ClientStore,
 	userStore store.UserStore,
 	authCodeStore store.AuthCodeStore,
+	nonceStore store.NonceStore,
 ) *Handler {
 	return &Handler{
-		service: authorize.NewService(clientStore, userStore, authCodeStore),
+		service: authorize.NewService(clientStore, userStore, authCodeStore, nonceStore),
 	}
 }
 
@@ -31,11 +32,14 @@ func (h *Handler) Handle(c *gin.Context) {
 
 	// Convert HTTP request to domain request
 	domainReq := &authorize.AuthorizeRequest{
-		ClientID:     httpReq.ClientID,
-		RedirectURI:  httpReq.RedirectURI,
-		ResponseType: httpReq.ResponseType,
-		Scope:        httpReq.Scope,
-		State:        httpReq.State,
+		ClientID:            httpReq.ClientID,
+		RedirectURI:         httpReq.RedirectURI,
+		ResponseType:        httpReq.ResponseType,
+		Scope:               httpReq.Scope,
+		State:               httpReq.State,
+		Nonce:               httpReq.Nonce,
+		CodeChallenge:       httpReq.CodeChallenge,
+		CodeChallengeMethod: httpReq.CodeChallengeMethod,
 	}
 
 	result, errType, err := h.service.Authorize(c.Request.Context(), domainReq)

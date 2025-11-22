@@ -38,6 +38,10 @@ type JWTStore interface {
 	GenerateIDToken(ctx context.Context, userID, clientID, nonce string) (string, error)
 }
 
+type NonceStore interface {
+	MarkNonceSeen(ctx context.Context, nonce string, clientID string) error
+}
+
 type Stores struct {
 	Key      KeyStore
 	User     UserStore
@@ -45,4 +49,5 @@ type Stores struct {
 	AuthCode AuthCodeStore
 	Token    TokenStore
 	JWT      JWTStore
+	Nonce    NonceStore
 }
