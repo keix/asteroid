@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -34,7 +35,7 @@ func (ts *TokenStore) SaveAccessToken(ctx context.Context, token *entity.AccessT
 
 	// Add TTL for automatic deletion
 	item["ttl"] = &types.AttributeValueMemberN{
-		Value: aws.String(aws.ToString(aws.Int64(token.ExpiresAt.Unix()))),
+		Value: strconv.FormatInt(token.ExpiresAt.Unix(), 10),
 	}
 
 	_, err = ts.client.PutItem(ctx, &dynamodb.PutItemInput{
@@ -52,7 +53,7 @@ func (ts *TokenStore) SaveRefreshToken(ctx context.Context, token *entity.Refres
 
 	// Add TTL for automatic deletion
 	item["ttl"] = &types.AttributeValueMemberN{
-		Value: aws.String(aws.ToString(aws.Int64(token.ExpiresAt.Unix()))),
+		Value: strconv.FormatInt(token.ExpiresAt.Unix(), 10),
 	}
 
 	_, err = ts.client.PutItem(ctx, &dynamodb.PutItemInput{

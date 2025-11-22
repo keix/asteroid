@@ -30,5 +30,6 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 		AuthCode: NewAuthCodeStore(redisClient),
 		Token:    NewTokenStore(redisClient),
 		JWT:      jwtStore,
+		Nonce:    NewNonceStore(redisClient),
 	}, nil
 }

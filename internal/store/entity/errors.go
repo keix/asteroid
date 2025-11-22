@@ -9,4 +9,5 @@ var (
 	ErrAuthCodeNotFound     = errors.New("auth code not found")
 	ErrRefreshTokenNotFound = errors.New("refresh token not found")
 	ErrRefreshTokenExpired  = errors.New("refresh token expired")
+	ErrNonceAlreadySeen     = errors.New("nonce already seen")
 )

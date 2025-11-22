@@ -14,14 +14,14 @@ type TokenStore struct {
 	mu            sync.RWMutex
 }
 
-func NewTokenStore() *TokenStore {
+func NewTokenStore(ctx context.Context) *TokenStore {
 	ts := &TokenStore{
 		accessTokens:  make(map[string]*entity.AccessToken),
 		refreshTokens: make(map[string]*entity.RefreshToken),
 	}
 
 	// Start cleanup goroutine for expired tokens
-	go ts.cleanupExpiredTokens()
+	go ts.cleanupExpiredTokens(ctx)
 
 	return ts
 }
@@ -65,28 +65,34 @@ func (ts *TokenStore) DeleteRefreshToken(ctx context.Context, token string) erro
 }
 
 // cleanupExpiredTokens periodically removes expired tokens
-func (ts *TokenStore) cleanupExpiredTokens() {
+func (ts *TokenStore) cleanupExpiredTokens(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		now := time.Now()
-		ts.mu.Lock()
-
-		// Clean access tokens
-		for token, accessToken := range ts.accessTokens {
-			if now.After(accessToken.ExpiresAt) {
-				delete(ts.accessTokens, token)
-			}
+	for {
+		select {
+		case <-ticker.C:
+			ts.deleteExpired()
+		case <-ctx.Done():
+			return
 		}
+	}
+}
 
-		// Clean refresh tokens
-		for token, refreshToken := range ts.refreshTokens {
-			if now.After(refreshToken.ExpiresAt) {
-				delete(ts.refreshTokens, token)
-			}
+func (ts *TokenStore) deleteExpired() {
+	now := time.Now()
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+
+	for token, accessToken := range ts.accessTokens {
+		if now.After(accessToken.ExpiresAt) {
+			delete(ts.accessTokens, token)
 		}
+	}
 
-		ts.mu.Unlock()
+	for token, refreshToken := range ts.refreshTokens {
+		if now.After(refreshToken.ExpiresAt) {
+			delete(ts.refreshTokens, token)
+		}
 	}
 }

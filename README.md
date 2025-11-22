@@ -1,5 +1,5 @@
 # Asteroid
-An OpenID Connect (OIDC) Provider implementation written in Go using the Gin framework.
+A fully compliant OpenID Connect Core 1.0 Provider implementation written in Go using the Gin framework.
 
 ## Prerequisites
 - Go 1.24 or later (Tested with Go 1.24.6)
@@ -53,8 +53,9 @@ Query parameters:
 - `client_id` — must be a registered client
 - `redirect_uri` — must match one of the client's allowed URIs
 - `response_type` — only `code` is supported
-- `scope` — only `openid` is supported
+- `scope` — must include `openid` for OpenID Connect flows
 - `state` — optional value echoed back on redirect
+- `nonce` — optional nonce value included in ID Token
 
 Returns HTTP redirects with `code` (and `state`) appended to the provided `redirect_uri`, or an error response if validation fails.
 
@@ -77,8 +78,9 @@ For authorization code grant:
 For refresh token grant:
 - `refresh_token` — valid refresh token
 
-Returns JSON with `access_token`, `token_type`, `expires_in`, `refresh_token`, and `scope`.
+Returns JSON with `access_token`, `token_type`, `expires_in`, `refresh_token`, `scope`, and `id_token` (for OpenID Connect flows).
 
+The `id_token` is a signed JWT containing user identity claims, compliant with OpenID Connect Core 1.0 specification.
 
 ### JSON Web Key Set (JWKS)
 ```

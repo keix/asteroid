@@ -7,6 +7,7 @@ import (
 	"asteroid/internal/http/token"
 	"asteroid/internal/http/wellknown"
 	"asteroid/internal/store"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +18,7 @@ func RegisterRoutes(
 ) {
 	wellKnownHandler := wellknown.NewHandler(cfg.Issuer)
 	jwksHandler := jwks.NewHandler(stores.Key)
-	authorizeHandler := authorize.NewHandler(stores.Client, stores.User, stores.AuthCode)
+	authorizeHandler := authorize.NewHandler(stores.Client, stores.User, stores.AuthCode, stores.Nonce)
 	tokenHandler := token.NewHandler(stores.AuthCode, stores.Token, stores.Client, stores.JWT)
 
 	oidcGroup := r.Group("/")

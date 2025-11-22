@@ -6,6 +6,7 @@ import (
 	"asteroid/internal/config"
 	"asteroid/internal/oidc/jwt"
 	"asteroid/internal/store"
+
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
@@ -34,5 +35,6 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 		AuthCode: NewAuthCodeStore(client, cfg.DynamoDBAuthCodeTable),
 		Token:    NewTokenStore(client, cfg.DynamoDBAccessTokenTable, cfg.DynamoDBRefreshTokenTable),
 		JWT:      jwtStore,
+		Nonce:    NewNonceStore(client, cfg.DynamoDBNonceTable),
 	}, nil
 }

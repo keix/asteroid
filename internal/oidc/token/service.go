@@ -142,7 +142,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(authCode.Scope, "openid") {
-		idToken, err := s.JWTStore.GenerateIDToken(ctx, authCode.UserID, authCode.ClientID, "")
+		idToken, err := s.JWTStore.GenerateIDToken(ctx, authCode.UserID, authCode.ClientID, authCode.Nonce)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -230,6 +230,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(refreshTokenEntity.Scope, "openid") {
+		// NOTE: nonce is empty for refresh token grant (nonce only applies to authorization request)
 		idToken, err := s.JWTStore.GenerateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
 		if err != nil {
 			return nil, 0, err

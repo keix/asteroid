@@ -17,6 +17,7 @@ type Service struct {
 	ClientStore   store.ClientStore
 	UserStore     store.UserStore
 	AuthCodeStore store.AuthCodeStore
+	NonceStore    store.NonceStore
 }
 
 // NewService creates a new authorization service
@@ -24,21 +25,26 @@ func NewService(
 	clientStore store.ClientStore,
 	userStore store.UserStore,
 	authCodeStore store.AuthCodeStore,
+	nonceStore store.NonceStore,
 ) *Service {
 	return &Service{
 		ClientStore:   clientStore,
 		UserStore:     userStore,
 		AuthCodeStore: authCodeStore,
+		NonceStore:    nonceStore,
 	}
 }
 
 // AuthorizeRequest represents the data needed for authorization
 type AuthorizeRequest struct {
-	ClientID     string
-	RedirectURI  string
-	ResponseType string
-	Scope        string
-	State        string
+	ClientID            string
+	RedirectURI         string
+	ResponseType        string
+	Scope               string
+	State               string
+	Nonce               string
+	CodeChallenge       string
+	CodeChallengeMethod string
 }
 
 // Authorize processes authorization request (pure business logic)
@@ -46,6 +52,21 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	// Validate required parameters
 	if req.ClientID == "" || req.RedirectURI == "" || req.ResponseType == "" {
 		return nil, ErrorInvalidRequest, nil
+	}
+
+	// SECURITY: State parameter is mandatory for CSRF protection (OIDC best practice)
+	if req.State == "" {
+		return nil, ErrorInvalidRequest, nil
+	}
+
+	// SECURITY: Nonce replay protection (prevents ID token replay attacks)
+	if req.Nonce != "" {
+		err := s.NonceStore.MarkNonceSeen(ctx, req.Nonce, req.ClientID)
+		if errors.Is(err, entity.ErrNonceAlreadySeen) {
+			return nil, ErrorInvalidRequest, nil
+		} else if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	// Validate response_type
@@ -84,12 +105,16 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	// Generate authorization code
 	code := uuid.NewString()
 	authCode := &entity.AuthCode{
-		Code:        code,
-		ClientID:    client.ID,
-		UserID:      user.ID,
-		RedirectURI: req.RedirectURI,
-		Scope:       req.Scope,
-		ExpiresAt:   time.Now().Add(5 * time.Minute),
+		Code:                code,
+		ClientID:            client.ID,
+		UserID:              user.ID,
+		RedirectURI:         req.RedirectURI,
+		CodeChallenge:       req.CodeChallenge,
+		CodeChallengeMethod: req.CodeChallengeMethod,
+		Scope:               req.Scope,
+		State:               req.State,
+		Nonce:               req.Nonce,
+		ExpiresAt:           time.Now().Add(5 * time.Minute),
 	}
 
 	if err := s.AuthCodeStore.SaveAuthCode(ctx, authCode); err != nil {
