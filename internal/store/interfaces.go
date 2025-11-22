@@ -34,10 +34,15 @@ type TokenStore interface {
 	DeleteRefreshToken(ctx context.Context, token string) error
 }
 
+type JWTStore interface {
+	GenerateIDToken(ctx context.Context, userID, clientID, nonce string) (string, error)
+}
+
 type Stores struct {
 	Key      KeyStore
 	User     UserStore
 	Client   ClientStore
 	AuthCode AuthCodeStore
 	Token    TokenStore
+	JWT      JWTStore
 }

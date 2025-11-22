@@ -15,6 +15,9 @@ type Service struct {
 	issuer   string
 }
 
+// Ensure Service implements JWTStore interface
+var _ store.JWTStore = (*Service)(nil)
+
 // NewService creates a new JWT service
 func NewService(keyStore store.KeyStore, issuer string) *Service {
 	return &Service{

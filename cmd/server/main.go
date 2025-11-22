@@ -26,7 +26,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	http.RegisterRoutes(r, stores.Key, stores.User, stores.Client, stores.AuthCode, stores.Token, cfg)
+	http.RegisterRoutes(r, stores, cfg)
 
 	log.Println("Asteroid OIDC Provider running on :8880")
 	r.Run(":8880")

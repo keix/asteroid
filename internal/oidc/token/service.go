@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"asteroid/internal/oidc/jwt"
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
 )
@@ -18,7 +17,7 @@ type Service struct {
 	AuthCodeStore store.AuthCodeStore
 	TokenStore    store.TokenStore
 	ClientStore   store.ClientStore
-	JWTService    *jwt.Service
+	JWTStore      store.JWTStore
 }
 
 // NewService creates a new token service
@@ -26,13 +25,13 @@ func NewService(
 	authCodeStore store.AuthCodeStore,
 	tokenStore store.TokenStore,
 	clientStore store.ClientStore,
-	jwtService *jwt.Service,
+	jwtStore store.JWTStore,
 ) *Service {
 	return &Service{
 		AuthCodeStore: authCodeStore,
 		TokenStore:    tokenStore,
 		ClientStore:   clientStore,
-		JWTService:    jwtService,
+		JWTStore:      jwtStore,
 	}
 }
 
@@ -143,7 +142,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(authCode.Scope, "openid") {
-		idToken, err := s.JWTService.GenerateIDToken(ctx, authCode.UserID, authCode.ClientID, "")
+		idToken, err := s.JWTStore.GenerateIDToken(ctx, authCode.UserID, authCode.ClientID, "")
 		if err != nil {
 			return nil, 0, err
 		}
@@ -231,7 +230,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(refreshTokenEntity.Scope, "openid") {
-		idToken, err := s.JWTService.GenerateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
+		idToken, err := s.JWTStore.GenerateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
 		if err != nil {
 			return nil, 0, err
 		}

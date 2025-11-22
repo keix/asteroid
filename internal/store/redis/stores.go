@@ -2,6 +2,7 @@ package redis
 
 import (
 	"asteroid/internal/config"
+	"asteroid/internal/oidc/jwt"
 	"asteroid/internal/store"
 	"github.com/redis/go-redis/v9"
 )
@@ -20,11 +21,14 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 		DB:       cfg.RedisDB,
 	})
 
+	jwtStore := jwt.NewService(keyStore, cfg.Issuer)
+
 	return &store.Stores{
 		Key:      keyStore,
 		User:     NewUserStore(),
 		Client:   NewClientStore(),
 		AuthCode: NewAuthCodeStore(redisClient),
 		Token:    NewTokenStore(redisClient),
+		JWT:      jwtStore,
 	}, nil
 }
