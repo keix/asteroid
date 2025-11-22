@@ -3,7 +3,7 @@ package authorize
 import (
 	"context"
 	"errors"
-	"slices"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -88,8 +88,12 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, 0, err
 	}
 
-	// Validate redirect_uri
-	if !slices.Contains(client.RedirectURIs, req.RedirectURI) {
+	// SECURITY NOTE:
+	// Do not perform redirect_uri validation in the HTTP handler.
+	// OAuth2/OIDC redirect_uri matching is protocol logic, not transport logic.
+	// Keeping this validation inside the authorization service ensures consistency
+	// across all entry points and improves auditability.
+	if !validateExactRedirectURI(client.RedirectURIs, req.RedirectURI) {
 		return nil, ErrorInvalidRedirectURI, nil
 	}
 
@@ -128,4 +132,38 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	}
 
 	return &Result{RedirectURL: redirectURL}, 0, nil
+}
+
+// validateExactRedirectURI performs RFC 6749 compliant exact redirect URI validation
+// OIDC/OAuth2 Security: All URI components must match exactly to prevent attacks
+func validateExactRedirectURI(registeredURIs []string, requestedURI string) bool {
+	for _, registeredURI := range registeredURIs {
+		if isExactURIMatch(registeredURI, requestedURI) {
+			return true
+		}
+	}
+	return false
+}
+
+// isExactURIMatch performs component-by-component URI comparison per RFC 6749
+// Compares: scheme, host, port, path, query parameters (order preserved), fragment
+func isExactURIMatch(registered, requested string) bool {
+	// Parse both URIs - reject if either is malformed
+	regURL, err := url.Parse(registered)
+	if err != nil {
+		return false // Invalid registered URI should never match
+	}
+
+	reqURL, err := url.Parse(requested)
+	if err != nil {
+		return false // Invalid requested URI should never match
+	}
+
+	// RFC 6749 Section 3.1.2.3: "exact matching of redirect URIs"
+	// All components must match exactly - no normalization allowed
+	return regURL.Scheme == reqURL.Scheme &&
+		regURL.Host == reqURL.Host && // Host includes port per RFC 3986
+		regURL.Path == reqURL.Path &&
+		regURL.RawQuery == reqURL.RawQuery && // Preserve parameter order
+		regURL.Fragment == reqURL.Fragment
 }

@@ -34,25 +34,25 @@ func NewNonceStore(client *dynamodb.Client, tableName string) *NonceStore {
 func (s *NonceStore) MarkNonceSeen(ctx context.Context, nonce, clientID string) error {
 	key := clientID + "#" + nonce
 	now := time.Now()
-	
+
 	item := SeenNonce{
 		ClientNonce: key,
 		SeenAt:      now.Unix(),
 		TTL:         now.Add(7 * time.Minute).Unix(), // TTL = AuthCode lifetime + buffer
 	}
-	
+
 	marshaledItem, err := attributevalue.MarshalMap(item)
 	if err != nil {
 		return err
 	}
-	
+
 	// Conditional put: only insert if key doesn't exist
 	_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName:           aws.String(s.tableName),
 		Item:                marshaledItem,
 		ConditionExpression: aws.String("attribute_not_exists(client_nonce)"),
 	})
-	
+
 	if err != nil {
 		var condErr *types.ConditionalCheckFailedException
 		if errors.As(err, &condErr) {
@@ -60,6 +60,6 @@ func (s *NonceStore) MarkNonceSeen(ctx context.Context, nonce, clientID string) 
 		}
 		return err
 	}
-	
+
 	return nil // Success: nonce marked as seen for first time
 }
