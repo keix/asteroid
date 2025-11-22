@@ -44,6 +44,7 @@ type TokenRequest struct {
 	ClientSecret string
 	RefreshToken string
 	Scope        string
+	CodeVerifier string
 }
 
 // ExchangeToken processes token request (pure business logic)
@@ -96,6 +97,16 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 	}
 	if time.Now().After(authCode.ExpiresAt) {
 		return nil, ErrorInvalidGrant, nil
+	}
+
+	// SECURITY: PKCE (RFC 7636) code_verifier validation
+	if authCode.CodeChallenge != "" {
+		if req.CodeVerifier == "" {
+			return nil, ErrorInvalidRequest, nil
+		}
+		if !validatePKCE(authCode.CodeChallenge, req.CodeVerifier, authCode.CodeChallengeMethod) {
+			return nil, ErrorInvalidGrant, nil
+		}
 	}
 
 	// Delete used authorization code

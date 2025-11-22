@@ -39,6 +39,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		ClientSecret: httpReq.ClientSecret,
 		RefreshToken: httpReq.RefreshToken,
 		Scope:        httpReq.Scope,
+		CodeVerifier: httpReq.CodeVerifier,
 	}
 
 	result, errType, err := h.service.ExchangeToken(c.Request.Context(), domainReq)

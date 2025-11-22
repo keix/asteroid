@@ -11,6 +11,7 @@ type Request struct {
 	ClientSecret string `json:"client_secret" form:"client_secret"`
 	RefreshToken string `json:"refresh_token" form:"refresh_token"`
 	Scope        string `json:"scope" form:"scope"`
+	CodeVerifier string `json:"code_verifier" form:"code_verifier"`
 }
 
 // NewRequest creates Request from gin.Context
@@ -31,5 +32,6 @@ func NewRequest(c *gin.Context) *Request {
 		ClientSecret: c.PostForm("client_secret"),
 		RefreshToken: c.PostForm("refresh_token"),
 		Scope:        c.PostForm("scope"),
+		CodeVerifier: c.PostForm("code_verifier"),
 	}
 }
