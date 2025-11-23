@@ -1,8 +1,8 @@
-# Asteroid OpenID Connect Provider Specification
+# Asteroid
 
 This document defines the technical specifications for Asteroid, a minimal OpenID Connect Provider implementation designed for production use with multiple storage backend support.
 
-## Overview
+## Specification Overview
 
 Asteroid implements OpenID Connect Core 1.0 specification with security enhancements including PKCE, nonce validation, and comprehensive error handling. The system is designed with a clean separation between business logic and storage layers, supporting memory, Redis, and DynamoDB backends.
 

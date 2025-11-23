@@ -5,44 +5,7 @@ This document outlines the core architecture, layer separation, supported flows,
 
 ## Architecture Overview
 
-Asteroid follows a clean architecture pattern with clear separation of concerns across multiple layers:
-
-### Layer Architecture
-
-```
-┌────────────────────────────────────────────────────────────┐
-│                    HTTP Layer                              │
-│  internal/http/                                            │
-│  ├── authorize/    (HTTP request/response handling)        │
-│  ├── token/        (Form parsing, validation)              │
-│  ├── jwks/         (Content-Type, error formatting)        │
-│  ├── wellknown/    (HTTP status codes)                     │
-│  └── router.go     (Route registration)                    │
-└────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌────────────────────────────────────────────────────────────┐
-│                   Domain Layer                             │
-│  internal/oidc/                                            │
-│  ├── authorize/    (Business logic, validation rules)      │
-│  ├── token/        (PKCE, token generation, security)      │
-│  ├── jwt/          (ID token creation, claims)             │
-│  ├── jwks/         (Key management, JWKS generation)       │
-│  └── wellknown/    (OIDC discovery document)               │
-└────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌────────────────────────────────────────────────────────────┐
-│                  Storage Layer                             │
-│  internal/store/                                           │
-│  ├── interfaces.go (Store interfaces)                      │
-│  ├── entity/       (Data models, error definitions)        │
-│  ├── memory/       (In-memory implementation)              │
-│  ├── redis/        (Redis implementation)                  │
-│  ├── dynamodb/     (DynamoDB implementation)               │
-│  └── driver/       (Factory pattern for store selection)   │
-└────────────────────────────────────────────────────────────┘
-```
+Asteroid follows a clean architecture pattern with clear separation of concerns across three layers: HTTP, Domain, and Storage.
 
 ### Layer Responsibilities
 
