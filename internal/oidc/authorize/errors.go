@@ -4,7 +4,8 @@ package authorize
 type ErrorType int
 
 const (
-	ErrorInvalidRequest ErrorType = iota
+	ErrorNone ErrorType = iota
+	ErrorInvalidRequest
 	ErrorInvalidClient
 	ErrorInvalidRedirectURI
 	ErrorUnsupportedResponse
@@ -16,6 +17,8 @@ const (
 // String returns string representation of error type
 func (e ErrorType) String() string {
 	switch e {
+	case ErrorNone:
+		return ""
 	case ErrorInvalidRequest:
 		return "invalid_request"
 	case ErrorInvalidClient:

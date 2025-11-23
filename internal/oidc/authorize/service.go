@@ -3,7 +3,7 @@ package authorize
 import (
 	"context"
 	"errors"
-	"net/url"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,12 +81,12 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 
 	// SECURITY: PKCE (RFC 7636) validation for code interception protection
 	if req.CodeChallenge != "" {
-		// If code_challenge is provided, validate the method
-		if req.CodeChallengeMethod != "S256" && req.CodeChallengeMethod != "plain" {
+		// If code_challenge is provided, code_challenge_method is required
+		if req.CodeChallengeMethod == "" {
 			return nil, ErrorInvalidRequest, nil
 		}
-		// Reject 'plain' method for security (only allow S256)
-		if req.CodeChallengeMethod == "plain" {
+		// Only S256 method is allowed for security (reject plain and unknown methods)
+		if req.CodeChallengeMethod != "S256" {
 			return nil, ErrorInvalidRequest, nil
 		}
 	}
@@ -143,39 +143,11 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		redirectURL += "&state=" + req.State
 	}
 
-	return &Result{RedirectURL: redirectURL}, 0, nil
+	return &Result{RedirectURL: redirectURL}, ErrorNone, nil
 }
 
 // validateExactRedirectURI performs RFC 6749 compliant exact redirect URI validation
-// OIDC/OAuth2 Security: All URI components must match exactly to prevent attacks
+// SECURITY: Uses string comparison to prevent URL normalization attacks
 func validateExactRedirectURI(registeredURIs []string, requestedURI string) bool {
-	for _, registeredURI := range registeredURIs {
-		if isExactURIMatch(registeredURI, requestedURI) {
-			return true
-		}
-	}
-	return false
-}
-
-// isExactURIMatch performs component-by-component URI comparison per RFC 6749
-// Compares: scheme, host, port, path, query parameters (order preserved), fragment
-func isExactURIMatch(registered, requested string) bool {
-	// Parse both URIs - reject if either is malformed
-	regURL, err := url.Parse(registered)
-	if err != nil {
-		return false // Invalid registered URI should never match
-	}
-
-	reqURL, err := url.Parse(requested)
-	if err != nil {
-		return false // Invalid requested URI should never match
-	}
-
-	// RFC 6749 Section 3.1.2.3: "exact matching of redirect URIs"
-	// All components must match exactly - no normalization allowed
-	return regURL.Scheme == reqURL.Scheme &&
-		regURL.Host == reqURL.Host && // Host includes port per RFC 3986
-		regURL.Path == reqURL.Path &&
-		regURL.RawQuery == reqURL.RawQuery && // Preserve parameter order
-		regURL.Fragment == reqURL.Fragment
+	return slices.Contains(registeredURIs, requestedURI)
 }
