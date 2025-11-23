@@ -45,6 +45,7 @@ type TokenRequest struct {
 	RefreshToken string
 	Scope        string
 	CodeVerifier string
+	AuthMethod   string // client_secret_post or client_secret_basic
 }
 
 // ExchangeToken processes token request (pure business logic)
@@ -74,8 +75,8 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		return nil, 0, err
 	}
 
-	// Validate client secret
-	if client.Secret != req.ClientSecret {
+	// Validate client authentication
+	if err := s.validateClientAuthentication(client, req); err != nil {
 		return nil, ErrorInvalidClient, nil
 	}
 
@@ -178,8 +179,8 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 		return nil, 0, err
 	}
 
-	// Validate client secret
-	if client.Secret != req.ClientSecret {
+	// Validate client authentication
+	if err := s.validateClientAuthentication(client, req); err != nil {
 		return nil, ErrorInvalidClient, nil
 	}
 
@@ -250,4 +251,31 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	}
 
 	return result, 0, nil
+}
+
+// validateClientAuthentication validates client credentials and authentication method
+func (s *Service) validateClientAuthentication(client *entity.Client, req *TokenRequest) error {
+	// Check client secret
+	if client.Secret != req.ClientSecret {
+		return errors.New("invalid client secret")
+	}
+
+	// Default to client_secret_post if no method specified (backward compatibility)
+	clientAuthMethod := client.TokenEndpointAuthMethod
+	if clientAuthMethod == "" {
+		clientAuthMethod = "client_secret_post"
+	}
+
+	// Validate authentication method
+	requestAuthMethod := req.AuthMethod
+	if requestAuthMethod == "" {
+		requestAuthMethod = "client_secret_post" // default
+	}
+
+	// Check if client supports the requested authentication method
+	if clientAuthMethod != requestAuthMethod {
+		return errors.New("authentication method not supported for this client")
+	}
+
+	return nil
 }

@@ -23,7 +23,7 @@ func (s *Service) GetOpenIDConfiguration() *OpenIDConfiguration {
 		SubjectTypesSupported:             []string{"public"},
 		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
 		ScopesSupported:                   []string{"openid"},
-		TokenEndpointAuthMethodsSupported: []string{"client_secret_post"},
+		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		ResponseModesSupported:            []string{"query"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
 		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"},
