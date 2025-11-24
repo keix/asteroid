@@ -79,25 +79,18 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, ErrorInvalidScope, nil
 	}
 
-	// SECURITY: PKCE (RFC 7636) validation for code interception protection
-	if req.CodeChallenge != "" {
-		// If code_challenge is provided, code_challenge_method is required
-		if req.CodeChallengeMethod == "" {
-			return nil, ErrorInvalidRequest, nil
-		}
-		// Only S256 method is allowed for security (reject plain and unknown methods)
-		if req.CodeChallengeMethod != "S256" {
-			return nil, ErrorInvalidRequest, nil
-		}
-	}
-
-	// Get and validate client
+	// Get and validate client (need client info for PKCE policy)
 	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
 	if err != nil {
 		if errors.Is(err, entity.ErrClientNotFound) {
 			return nil, ErrorInvalidClient, nil
 		}
 		return nil, 0, err
+	}
+
+	// SECURITY: PKCE (RFC 7636) validation and enforcement
+	if err := s.validatePKCEForClient(client, req); err != nil {
+		return nil, ErrorInvalidRequest, nil
 	}
 
 	// SECURITY NOTE:
@@ -150,4 +143,27 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 // SECURITY: Uses string comparison to prevent URL normalization attacks
 func validateExactRedirectURI(registeredURIs []string, requestedURI string) bool {
 	return slices.Contains(registeredURIs, requestedURI)
+}
+
+// validatePKCEForClient validates PKCE requirements based on client type
+func (s *Service) validatePKCEForClient(client *entity.Client, req *AuthorizeRequest) error {
+	// For public clients, PKCE is mandatory
+	if client.IsPublicClient() {
+		if req.CodeChallenge == "" {
+			return errors.New("PKCE required for public clients")
+		}
+		// Basic validation - detailed format checking done elsewhere
+		if req.CodeChallengeMethod != "S256" {
+			return errors.New("only S256 method supported for PKCE")
+		}
+		return nil
+	}
+
+	// For confidential clients, PKCE is optional
+	// If provided, format validation is handled by existing logic
+	if req.CodeChallenge != "" && req.CodeChallengeMethod != "S256" {
+		return errors.New("only S256 method supported for PKCE")
+	}
+
+	return nil
 }

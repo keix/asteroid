@@ -28,8 +28,14 @@ func main() {
 	r := gin.Default()
 	http.RegisterRoutes(r, stores, cfg)
 
+	// Development: HTTP server on port 8880
 	log.Println("Asteroid OIDC Provider running on :8880")
 	r.Run(":8880")
+
+	// Production: Unix socket (uncomment for production deployment)
+	// Note: Clean up socket file on shutdown with signal handlers
+	// log.Println("Asteroid OIDC Provider running on unix:/var/run/asteroid/asteroid.sock")
+	// r.RunUnix("/var/run/asteroid/asteroid.sock")
 }
 
 func setupSeedData(stores *store.Stores) error {

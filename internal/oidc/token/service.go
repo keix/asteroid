@@ -255,7 +255,14 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 
 // validateClientAuthentication validates client credentials and authentication method
 func (s *Service) validateClientAuthentication(client *entity.Client, req *TokenRequest) error {
-	// Check client secret
+	// Public clients don't require client secret authentication
+	if client.IsPublicClient() {
+		// For public clients, PKCE is mandatory (enforced at authorization level)
+		// No client secret validation required
+		return nil
+	}
+
+	// Confidential clients require client secret
 	if client.Secret != req.ClientSecret {
 		return errors.New("invalid client secret")
 	}
