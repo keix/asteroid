@@ -1,5 +1,4 @@
 # Asteroid
-
 This document defines the technical specifications for Asteroid, a minimal OpenID Connect Provider implementation designed for production use with multiple storage backend support.
 
 ## Specification Overview

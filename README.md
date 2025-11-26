@@ -1,6 +1,11 @@
 # Asteroid
 An OpenID Connect Core 1.0 Provider implementation written in Go using the Gin framework.
 
+## Why Asteroid?
+Asteroid is composed of small, independent components that work together loosely — much like a cluster of asteroids forming a stable system.
+
+This design aligns with the UNIX philosophy: each unit does one thing well, keeping the whole system simple, transparent, and easy to understand.
+
 ## Prerequisites
 - Go 1.24 or later (Tested with Go 1.24.6)
 - OpenSSL (for generating RSA private keys)
@@ -34,7 +39,6 @@ Asteroid is configured using environment variables:
 | `OIDC_PRIVATE_KEY_PATH` | RSA private key (PEM) | `./keys/private.pem`    |
 
 ## Available Endpoints
-
 For detailed flow diagrams and architecture documentation, see [`docs/architecture.md`](docs/architecture.md).
 
 ### OpenID Connect Discovery
@@ -97,7 +101,7 @@ The default implementation loads initial users from a YAML file into in-memory s
 The OIDC core remains unchanged.  
 Simply provide your own UserStore, and Asteroid will use it automatically.
 
-Example:
+For example, you may replace it with a proxy-backed implementation:
 ```
 stores.User = external.NewUserProxy(apiURL, httpClient)
 ```
@@ -115,11 +119,23 @@ Redis provides fast, TTL-based persistence and is recommended for production-gra
 Asteroid is not Dockerized by default. A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
 
 Example configurations for Redis and DynamoDB Local are available under `examples/docker/`.
+
 ## Security Note
 Asteroid loads the RSA private key once at startup and keeps it in memory.
 
-The key must be stored securely and should never be committed to version control. For production environments, a secure key management service (KMS) is strongly recommended.
+The key must be stored securely and should never be committed to version control. Asteroid provides an interface for persisting newly generated keys during rotation. In development environments, keys can be written to a local file. For production deployments, we highly recommend storing rotated keys in a secure Key Management Service (KMS).
+
+In addition, Asteroid should not be exposed directly to the public internet.  
+We recommend placing it behind a reverse proxy:
+
+- **nginx (via unix domain socket)**  
+  Provides optimal isolation, no TCP surface, and keeps TLS termination outside the Asteroid process.
+
+- **AWS ALB (directly in front of Asteroid)**  
+  A clean, minimal setup where TLS termination and access control are fully handled by ALB, keeping Asteroid isolated from direct exposure and free from transport-layer concerns.
+
+By delegating TLS termination, rate limiting, and access policies to the upstream layer, the Asteroid binary can remain small, simple, and secure—consistent with its UNIX-inspired design philosophy.
 
 ## License
-Copyright KEI SAWAMURA 2025.  
+Copyright KEI SAWAMURA 2025 (a.k.a keix)  
 Asteroid is licensed under the MIT License. Copying, and modifying is encouraged and appreciated.
