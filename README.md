@@ -123,7 +123,9 @@ Example configurations for Redis and DynamoDB Local are available under `example
 ## Security Note
 Asteroid loads the RSA private key once at startup and keeps it in memory.
 
-The key must be stored securely and should never be committed to version control. Asteroid provides an interface for persisting newly generated keys during rotation. In development environments, keys can be written to a local file. For production deployments, we highly recommend storing rotated keys in a secure Key Management Service (KMS).
+The key must be stored securely and should never be committed to version control. Asteroid provides an interface for persisting newly generated keys during rotation.
+
+In development environments, keys can be written to a local file. For production deployments, we highly recommend storing rotated keys in a secure Key Management Service (KMS).
 
 In addition, Asteroid should not be exposed directly to the public internet.  
 We recommend placing it behind a reverse proxy:

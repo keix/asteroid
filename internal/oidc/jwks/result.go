@@ -6,8 +6,13 @@ type JWK struct {
 	Use string `json:"use"` // Public Key Use
 	Alg string `json:"alg"` // Algorithm
 	Kid string `json:"kid"` // Key ID
-	N   string `json:"n"`   // Modulus (for RSA)
-	E   string `json:"e"`   // Exponent (for RSA)
+
+	N string `json:"n,omitempty"` // Modulus (for RSA)
+	E string `json:"e,omitempty"` // Exponent (for RSA)
+
+	Crv string `json:"crv,omitempty"` // Curve (for ECDSA)
+	X   string `json:"x,omitempty"`   // X coordinate (for ECDSA)
+	Y   string `json:"y,omitempty"`   // Y coordinate (for ECDSA)
 }
 
 // JWKS represents a JSON Web Key Set

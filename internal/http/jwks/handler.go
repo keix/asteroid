@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"asteroid/internal/oidc/jwks"
-	"asteroid/internal/store"
+	"asteroid/internal/oidc/signing"
 )
 
 // Handler handles HTTP requests for JWKS endpoint
@@ -15,9 +15,9 @@ type Handler struct {
 }
 
 // NewHandler creates a new JWKS handler
-func NewHandler(keyStore store.KeyStore) *Handler {
+func NewHandler(signingService *signing.Service) *Handler {
 	return &Handler{
-		service: jwks.NewService(keyStore),
+		service: jwks.NewService(signingService),
 	}
 }
 
