@@ -113,6 +113,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 
 	// Generate authorization code
 	code := uuid.NewString()
+	now := time.Now()
 	authCode := &entity.AuthCode{
 		Code:                code,
 		ClientID:            client.ID,
@@ -123,7 +124,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		Scope:               req.Scope,
 		State:               req.State,
 		Nonce:               req.Nonce,
-		ExpiresAt:           time.Now().Add(5 * time.Minute),
+		ExpiresAt:           now.Add(5 * time.Minute),
 	}
 
 	if err := s.AuthCodeStore.SaveAuthCode(ctx, authCode); err != nil {

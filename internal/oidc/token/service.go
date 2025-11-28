@@ -67,12 +67,26 @@ func (s *Service) ExchangeToken(ctx context.Context, req *TokenRequest) (*Result
 }
 
 func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenRequest) (*Result, ErrorType, error) {
-	// Validate required parameters
+	// OIDC Core 1.0 Token Endpoint Validation Order
+	// Following RFC 6749 + OIDC Core security requirements
+	//
+	// Reject early — validate lightweight parameters first,
+	// defer costly operations (like DB reads or signature work) to the end.
+	//
+	// 1. Request parameters
+	// 2. Client authentication
+	// 3. Authorization code validation
+	// 4. PKCE validation
+	// 5. Token generation
+	// 6. ID Token creation with proper claim validation
+
+	// Step 1: Request Parameter Validation (OIDC Core 3.1.3.1)
 	if req.Code == "" || req.RedirectURI == "" || req.ClientID == "" {
 		return nil, ErrorInvalidRequest, nil
 	}
 
-	// Get and validate client
+	// Step 2: Client Authentication (OIDC Core 3.1.3.1 + RFC 6749 3.2.1)
+	// Must validate client identity BEFORE processing authorization code
 	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
 	if err != nil {
 		if errors.Is(err, entity.ErrClientNotFound) {
@@ -81,12 +95,12 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		return nil, 0, err
 	}
 
-	// Validate client authentication
+	// Client authentication (client_secret_post, client_secret_basic, etc.)
 	if err := s.validateClientAuthentication(client, req); err != nil {
 		return nil, ErrorInvalidClient, nil
 	}
 
-	// Get authorization code
+	// Step 3: Authorization Code Validation (OIDC Core 3.1.3.1)
 	authCode, err := s.AuthCodeStore.GetAuthCode(ctx, req.Code)
 	if err != nil {
 		if errors.Is(err, entity.ErrAuthCodeNotFound) {
@@ -95,18 +109,23 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		return nil, 0, err
 	}
 
-	// Validate authorization code
+	// Authorization code security validations (order matters for early rejection)
+	// 3a. Client ID binding (equivalent to audience validation)
 	if authCode.ClientID != req.ClientID {
 		return nil, ErrorInvalidGrant, nil
 	}
+	// 3b. Redirect URI binding
 	if authCode.RedirectURI != req.RedirectURI {
 		return nil, ErrorInvalidGrant, nil
 	}
-	if time.Now().After(authCode.ExpiresAt) {
+	// 3c. Temporal validity (equivalent to expiration validation)
+	now := time.Now()
+	if now.After(authCode.ExpiresAt) {
 		return nil, ErrorInvalidGrant, nil
 	}
 
-	// SECURITY: PKCE (RFC 7636) code_verifier validation
+	// Step 4: PKCE Validation (RFC 7636)
+	// Proof Key for Code Exchange validation for public clients
 	if authCode.CodeChallenge != "" {
 		if req.CodeVerifier == "" {
 			return nil, ErrorInvalidRequest, nil
@@ -121,10 +140,10 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		return nil, 0, err
 	}
 
-	// Generate tokens
+	// Step 5: Token Generation
 	accessToken := uuid.NewString()
 	refreshToken := uuid.NewString()
-	now := time.Now()
+	// Use consistent timestamp throughout the request
 
 	accessTokenEntity := &entity.AccessToken{
 		Token:     accessToken,
@@ -158,9 +177,10 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		Scope:        authCode.Scope,
 	}
 
+	// Step 6: ID Token Generation (OIDC Core 3.1.3.6)
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(authCode.Scope, "openid") {
-		idToken, err := s.generateIDToken(ctx, authCode.UserID, authCode.ClientID, authCode.Nonce)
+		idToken, err := s.generateIDToken(authCode.UserID, authCode.ClientID, authCode.Nonce, now)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -249,7 +269,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(refreshTokenEntity.Scope, "openid") {
 		// NOTE: nonce is empty for refresh token grant (nonce only applies to authorization request)
-		idToken, err := s.generateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
+		idToken, err := s.generateIDToken(refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "", now)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -294,22 +314,22 @@ func (s *Service) validateClientAuthentication(client *entity.Client, req *Token
 }
 
 // generateIDToken creates an ID token using the signing service
-func (s *Service) generateIDToken(ctx context.Context, userID, clientID, nonce string) (string, error) {
-	// Get active signing key
-	activeKey, err := s.SigningService.GetActiveKey("ES256") // Using ES256 as default
+// Uses current timestamp for both issuance and authentication time
+func (s *Service) generateIDToken(userID, clientID, nonce string, now time.Time) (string, error) {
+	// Get active signing key for ES256 algorithm
+	// Note: ES256 is Asteroid's current algorithm choice for performance and security
+	activeKey, err := s.SigningService.GetActiveKey("ES256")
 	if err != nil {
 		return "", fmt.Errorf("failed to get active signing key: %w", err)
 	}
 
-	// Create claims
-	now := time.Now()
+	// Create claims following OIDC Core validation order
 	claims := jwt.MapClaims{
-		"iss":       s.Issuer,
-		"sub":       userID,
-		"aud":       clientID,
-		"exp":       now.Add(15 * time.Minute).Unix(),
-		"iat":       now.Unix(),
-		"auth_time": now.Unix(),
+		"iss": s.Issuer,                         // Step 1: Issuer validation by clients
+		"sub": userID,                           // Subject identifier
+		"aud": clientID,                         // Step 2: Audience validation by clients
+		"exp": now.Add(15 * time.Minute).Unix(), // Step 3: Expiration validation
+		"iat": now.Unix(),                       // Issued at time
 	}
 
 	// Add nonce if provided

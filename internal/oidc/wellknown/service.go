@@ -26,6 +26,6 @@ func (s *Service) GetOpenIDConfiguration() *OpenIDConfiguration {
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		ResponseModesSupported:            []string{"query"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
-		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"},
+		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "nonce"},
 	}
 }
