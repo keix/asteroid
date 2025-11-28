@@ -21,7 +21,7 @@ func RegisterRoutes(
 	wellKnownHandler := wellknown.NewHandler(cfg.Issuer)
 	jwksHandler := jwks.NewHandler(signingService)
 	authorizeHandler := authorize.NewHandler(stores.Client, stores.User, stores.AuthCode, stores.Nonce)
-	tokenHandler := token.NewHandler(stores.AuthCode, stores.Token, stores.Client, stores.JWT)
+	tokenHandler := token.NewHandler(stores.AuthCode, stores.Token, stores.Client, signingService, cfg.Issuer)
 
 	oidcGroup := r.Group("/")
 	{

@@ -2,6 +2,7 @@ package signing
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"asteroid/internal/crypto"
@@ -41,16 +42,13 @@ func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTT
 		done:      make(chan struct{}),
 	}
 
-	// Load existing keys on startup
-	if err := manager.LoadExistingKeys(); err != nil {
-		// Log warning but continue
-		// In production, you might want to handle this differently
-	}
-
-	// Ensure active keys exist for all algorithms
+	// Generate initial keys for all algorithms (no file dependency)
 	for _, algorithm := range algorithms {
 		if _, err := rotator.EnsureActiveKey(algorithm); err != nil {
-			// Log error but continue
+			fmt.Printf("Failed to generate initial key for %s: %v\n", algorithm, err)
+			// Continue with other algorithms
+		} else {
+			fmt.Printf("Generated initial key for algorithm: %s\n", algorithm)
 		}
 	}
 

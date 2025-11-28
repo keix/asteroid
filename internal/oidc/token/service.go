@@ -3,21 +3,25 @@ package token
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"asteroid/internal/oidc/signing"
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
 )
 
 // Service handles token business logic
 type Service struct {
-	AuthCodeStore store.AuthCodeStore
-	TokenStore    store.TokenStore
-	ClientStore   store.ClientStore
-	JWTStore      store.JWTStore
+	AuthCodeStore  store.AuthCodeStore
+	TokenStore     store.TokenStore
+	ClientStore    store.ClientStore
+	SigningService *signing.Service
+	Issuer         string
 }
 
 // NewService creates a new token service
@@ -25,13 +29,15 @@ func NewService(
 	authCodeStore store.AuthCodeStore,
 	tokenStore store.TokenStore,
 	clientStore store.ClientStore,
-	jwtStore store.JWTStore,
+	signingService *signing.Service,
+	issuer string,
 ) *Service {
 	return &Service{
-		AuthCodeStore: authCodeStore,
-		TokenStore:    tokenStore,
-		ClientStore:   clientStore,
-		JWTStore:      jwtStore,
+		AuthCodeStore:  authCodeStore,
+		TokenStore:     tokenStore,
+		ClientStore:    clientStore,
+		SigningService: signingService,
+		Issuer:         issuer,
 	}
 }
 
@@ -154,7 +160,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(authCode.Scope, "openid") {
-		idToken, err := s.JWTStore.GenerateIDToken(ctx, authCode.UserID, authCode.ClientID, authCode.Nonce)
+		idToken, err := s.generateIDToken(ctx, authCode.UserID, authCode.ClientID, authCode.Nonce)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -243,7 +249,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(refreshTokenEntity.Scope, "openid") {
 		// NOTE: nonce is empty for refresh token grant (nonce only applies to authorization request)
-		idToken, err := s.JWTStore.GenerateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
+		idToken, err := s.generateIDToken(ctx, refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "")
 		if err != nil {
 			return nil, 0, err
 		}
@@ -285,4 +291,36 @@ func (s *Service) validateClientAuthentication(client *entity.Client, req *Token
 	}
 
 	return nil
+}
+
+// generateIDToken creates an ID token using the signing service
+func (s *Service) generateIDToken(ctx context.Context, userID, clientID, nonce string) (string, error) {
+	// Get active signing key
+	activeKey, err := s.SigningService.GetActiveKey("ES256") // Using ES256 as default
+	if err != nil {
+		return "", fmt.Errorf("failed to get active signing key: %w", err)
+	}
+
+	// Create claims
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss":       s.Issuer,
+		"sub":       userID,
+		"aud":       clientID,
+		"exp":       now.Add(15 * time.Minute).Unix(),
+		"iat":       now.Unix(),
+		"auth_time": now.Unix(),
+	}
+
+	// Add nonce if provided
+	if nonce != "" {
+		claims["nonce"] = nonce
+	}
+
+	// Create token
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header["kid"] = activeKey.KeyID
+
+	// Sign token
+	return token.SignedString(activeKey.PrivateKey)
 }

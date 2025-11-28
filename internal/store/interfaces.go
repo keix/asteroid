@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/rsa"
 
 	"asteroid/internal/store/entity"
 )
@@ -14,11 +13,6 @@ type UserStore interface {
 
 type ClientStore interface {
 	GetClient(ctx context.Context, id string) (*entity.Client, error)
-}
-
-type KeyStore interface {
-	GetSigningKey(ctx context.Context) (*rsa.PrivateKey, error)
-	GetKid(ctx context.Context) (string, error)
 }
 
 type AuthCodeStore interface {
@@ -43,11 +37,10 @@ type NonceStore interface {
 }
 
 type Stores struct {
-	Key      KeyStore
 	User     UserStore
 	Client   ClientStore
 	AuthCode AuthCodeStore
 	Token    TokenStore
-	JWT      JWTStore
 	Nonce    NonceStore
+	// Key and JWT stores removed - using signing.Manager instead
 }

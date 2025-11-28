@@ -11,10 +11,13 @@ import (
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/store"
 	"asteroid/internal/store/driver"
+
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
+
 	cfg := config.Load()
 
 	stores, err := driver.NewStores(&cfg)
@@ -36,7 +39,11 @@ func main() {
 	)
 	defer signingService.Close()
 
-	r := gin.Default()
+	// Minimal Gin engine
+	r := gin.New()
+	r.Use(gin.Recovery()) // keep system reliable, but silent
+	r.SetTrustedProxies(nil)
+
 	http.RegisterRoutes(r, stores, signingService, cfg)
 
 	// Development: HTTP server on port 8880

@@ -8,27 +8,20 @@ This design aligns with the UNIX philosophy: each unit does one thing well, keep
 
 ## Prerequisites
 - Go 1.24 or later (Tested with Go 1.24.6)
-- OpenSSL (for generating RSA private keys)
 
 ## Running Locally
-1. Generate RSA private key:
-```bash
-mkdir -p keys
-openssl genrsa -out keys/private.pem 2048
-```
-
-2. Build the server:
+1. Build the server:
 ```bash
 go mod tidy
 go build -o bin/asteroid ./cmd/server
 ```
 
-3. Start the server:
+2. Start the server:
 ```bash
 ./bin/asteroid
 ```
 
-The server will start on port 8880 by default.
+The server will start on port 8880 by default and automatically generate signing keys as needed.
 
 ## Configuration
 Asteroid is configured using environment variables:
@@ -36,7 +29,6 @@ Asteroid is configured using environment variables:
 | Variable                | Description           | Default                 |
 | ----------------------- | --------------------- | ----------------------- |
 | `OIDC_ISSUER`           | Issuer URL            | `http://localhost:8880` |
-| `OIDC_PRIVATE_KEY_PATH` | RSA private key (PEM) | `./keys/private.pem`    |
 
 ## Available Endpoints
 For detailed flow diagrams and architecture documentation, see [`docs/architecture.md`](docs/architecture.md).
@@ -121,11 +113,9 @@ Asteroid is not Dockerized by default. A simple Dockerfile is included for conve
 Example configurations for Redis and DynamoDB Local are available under `examples/docker/`.
 
 ## Security Note
-Asteroid loads the RSA private key once at startup and keeps it in memory.
+Asteroid automatically generates signing keys at startup and handles key rotation transparently. Keys are never stored in version control and are managed entirely through the built-in key management system.
 
-The key must be stored securely and should never be committed to version control. Asteroid provides an interface for persisting newly generated keys during rotation.
-
-In development environments, keys can be written to a local file. For production deployments, we highly recommend storing rotated keys in a secure Key Management Service (KMS).
+In development environments, generated keys are persisted to local files for convenience. For production deployments, we highly recommend configuring a Key Management Service (KMS) through the persister interface for secure key storage and rotation.
 
 In addition, Asteroid should not be exposed directly to the public internet.  
 We recommend placing it behind a reverse proxy:

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"asteroid/internal/oidc/signing"
 	"asteroid/internal/oidc/token"
 	"asteroid/internal/store"
 )
@@ -19,10 +20,11 @@ func NewHandler(
 	authCodeStore store.AuthCodeStore,
 	tokenStore store.TokenStore,
 	clientStore store.ClientStore,
-	jwtStore store.JWTStore,
+	signingService *signing.Service,
+	issuer string,
 ) *Handler {
 	return &Handler{
-		service: token.NewService(authCodeStore, tokenStore, clientStore, jwtStore),
+		service: token.NewService(authCodeStore, tokenStore, clientStore, signingService, issuer),
 	}
 }
 
