@@ -8,6 +8,7 @@ import (
 	"asteroid/internal/http/wellknown"
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/store"
+	"asteroid/internal/userinfo"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,12 +17,13 @@ func RegisterRoutes(
 	r *gin.Engine,
 	stores *store.Stores,
 	signingService *signing.Service,
+	userinfoProvider userinfo.Provider,
 	cfg config.Config,
 ) {
 	wellKnownHandler := wellknown.NewHandler(cfg.Issuer)
 	jwksHandler := jwks.NewHandler(signingService)
-	authorizeHandler := authorize.NewHandler(stores.Client, stores.User, stores.AuthCode, stores.Nonce)
-	tokenHandler := token.NewHandler(stores.AuthCode, stores.Token, stores.Client, signingService, cfg.Issuer)
+	authorizeHandler := authorize.NewHandler(stores.Client, userinfoProvider, stores.AuthCode, stores.Nonce)
+	tokenHandler := token.NewHandler(stores.AuthCode, stores.Token, stores.Client, signingService, userinfoProvider, cfg.Issuer)
 
 	oidcGroup := r.Group("/")
 	{

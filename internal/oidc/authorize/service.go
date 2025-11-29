@@ -10,28 +10,29 @@ import (
 
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
+	"asteroid/internal/userinfo"
 )
 
 // Service handles authorization business logic
 type Service struct {
-	ClientStore   store.ClientStore
-	UserStore     store.UserStore
-	AuthCodeStore store.AuthCodeStore
-	NonceStore    store.NonceStore
+	ClientStore      store.ClientStore
+	UserinfoProvider userinfo.Provider
+	AuthCodeStore    store.AuthCodeStore
+	NonceStore       store.NonceStore
 }
 
 // NewService creates a new authorization service
 func NewService(
 	clientStore store.ClientStore,
-	userStore store.UserStore,
+	userinfoProvider userinfo.Provider,
 	authCodeStore store.AuthCodeStore,
 	nonceStore store.NonceStore,
 ) *Service {
 	return &Service{
-		ClientStore:   clientStore,
-		UserStore:     userStore,
-		AuthCodeStore: authCodeStore,
-		NonceStore:    nonceStore,
+		ClientStore:      clientStore,
+		UserinfoProvider: userinfoProvider,
+		AuthCodeStore:    authCodeStore,
+		NonceStore:       nonceStore,
 	}
 }
 
@@ -45,6 +46,7 @@ type AuthorizeRequest struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	UserID              string // From X-Authenticated-User header
 }
 
 // Authorize processes authorization request (pure business logic)
@@ -102,10 +104,10 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, ErrorInvalidRedirectURI, nil
 	}
 
-	// Get user (simplified authentication)
-	user, err := s.UserStore.GetUserByID(ctx, "user-123")
+	// Get user (validate authenticated user exists)
+	_, err = s.UserinfoProvider.Fetch(ctx, req.UserID)
 	if err != nil {
-		if errors.Is(err, entity.ErrUserNotFound) {
+		if errors.Is(err, userinfo.ErrUserNotFound) {
 			return nil, ErrorAccessDenied, nil
 		}
 		return nil, 0, err
@@ -117,7 +119,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	authCode := &entity.AuthCode{
 		Code:                code,
 		ClientID:            client.ID,
-		UserID:              user.ID,
+		UserID:              req.UserID,
 		RedirectURI:         req.RedirectURI,
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,

@@ -8,6 +8,7 @@ import (
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/oidc/token"
 	"asteroid/internal/store"
+	"asteroid/internal/userinfo"
 )
 
 // Handler handles HTTP requests for token endpoint
@@ -21,10 +22,11 @@ func NewHandler(
 	tokenStore store.TokenStore,
 	clientStore store.ClientStore,
 	signingService *signing.Service,
+	userinfoProvider userinfo.Provider,
 	issuer string,
 ) *Handler {
 	return &Handler{
-		service: token.NewService(authCodeStore, tokenStore, clientStore, signingService, issuer),
+		service: token.NewService(authCodeStore, tokenStore, clientStore, signingService, userinfoProvider, issuer),
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"asteroid/internal/oidc/authorize"
 	"asteroid/internal/store"
+	"asteroid/internal/userinfo"
 )
 
 // Handler handles HTTP requests for authorization endpoint
@@ -17,18 +18,28 @@ type Handler struct {
 // NewHandler creates a new authorization handler
 func NewHandler(
 	clientStore store.ClientStore,
-	userStore store.UserStore,
+	userinfoProvider userinfo.Provider,
 	authCodeStore store.AuthCodeStore,
 	nonceStore store.NonceStore,
 ) *Handler {
 	return &Handler{
-		service: authorize.NewService(clientStore, userStore, authCodeStore, nonceStore),
+		service: authorize.NewService(clientStore, userinfoProvider, authCodeStore, nonceStore),
 	}
 }
 
 // Handle processes authorization HTTP requests
 func (h *Handler) Handle(c *gin.Context) {
 	httpReq := NewRequest(c)
+
+	// Extract authenticated user from header
+	userID := c.GetHeader("X-Authenticated-User")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":             "unauthenticated",
+			"error_description": "X-Authenticated-User header required",
+		})
+		return
+	}
 
 	// Convert HTTP request to domain request
 	domainReq := &authorize.AuthorizeRequest{
@@ -40,6 +51,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		Nonce:               httpReq.Nonce,
 		CodeChallenge:       httpReq.CodeChallenge,
 		CodeChallengeMethod: httpReq.CodeChallengeMethod,
+		UserID:              userID,
 	}
 
 	result, errType, err := h.service.Authorize(c.Request.Context(), domainReq)

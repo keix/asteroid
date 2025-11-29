@@ -1,6 +1,4 @@
 # Asteroid
-Asteroid is a minimal OpenID Connect (OIDC) Provider implemented in Go using the Gin framework.
-
 This document outlines the core architecture, layer separation, supported flows, and the interactions between the client application, the Asteroid provider, and the storage layer.
 
 ## Architecture Overview
@@ -62,9 +60,14 @@ Asteroid follows a clean architecture pattern with clear separation of concerns 
 - Storage connection parameters
 
 #### Data Loading (`internal/loader/`)
-- YAML-based data initialization
-- Separate loaders for different data types (clients, users, keys)
-- Bootstrap data management
+- YAML-based client data initialization  
+- Bootstrap data management for client configuration
+
+#### UserInfo Provider (`internal/userinfo/`)
+- User information abstraction layer
+- Lazy loading user data on-demand (no startup eager loading)
+- Pluggable backends (YAML, HTTP API, etc.)
+- Transparent caching support
 
 ### Key Architecture Benefits
 
@@ -79,47 +82,30 @@ Asteroid follows a clean architecture pattern with clear separation of concerns 
 sequenceDiagram
     participant User as User Agent
     participant Client as Client Application
-    participant Asteroid as Asteroid OIDC Provider
-    participant Store as Memory Store
+    participant Asteroid as Asteroid
+    participant RS as Resource Server
 
-    Note over User,Store: Discovery Phase
+    Note over Client,Asteroid: 1. Discovery
     Client->>Asteroid: GET /.well-known/openid-configuration
-    Asteroid->>Client: OIDC Discovery Document
+    Asteroid-->>Client: OIDC Metadata
 
-    Note over User,Store: Authorization Phase
-    User->>Client: Login Request
-    Client->>User: Redirect to Authorization Endpoint
-    User->>Asteroid: GET /authorize?client_id=...&redirect_uri=...&response_type=code&scope=openid&state=...
+    Note over User,Asteroid: 2. Authorization Request
+    User->>Client: Login
+    Client->>Asteroid: GET /authorize?... (X-Authenticated-User)
+    Asteroid-->>Client: Redirect with Authorization Code
 
-    Asteroid->>Store: GetClient(client_id)
-    Store->>Asteroid: Client Details
-    
-    alt Valid Client & Redirect URI
-        Asteroid->>Store: GetUserByID("user-123")
-        Store->>Asteroid: User Details
-        Asteroid->>Store: SaveAuthCode(code)
-        Store->>Asteroid: Success
-        Asteroid->>User: Redirect to redirect_uri?code=...&state=...
-        User->>Client: Authorization Code
-    else Invalid Request
-        Asteroid->>User: Error Response
-    end
+    Note over Client,Asteroid: 3. Token Exchange
+    Client->>Asteroid: POST /token
+    Asteroid-->>Client: ID Token + Access Token
 
-    Note over User,Store: Token Exchange
-    Client->>Asteroid: POST /token (code, client_secret)
-    Asteroid->>Store: GetAuthCode(code)
-    Store->>Asteroid: AuthCode Details
-    Asteroid->>Store: DeleteAuthCode(code)
-    Asteroid->>Store: SaveAccessToken(access_token)
-    Asteroid->>Store: SaveRefreshToken(refresh_token)
-    Store->>Asteroid: Success
-    Asteroid->>Asteroid: Generate ID Token (JWT)
-    Asteroid->>Client: Access Token + Refresh Token + ID Token
+    Note over Client: 4. ID Token Verification
+    Client->>Client: Verify ID Token (signature + iss + aud + nonce)
 
-    Note over User,Store: Token Verification
-    Client->>Asteroid: GET /jwks.json
-    Asteroid->>Client: JSON Web Key Set
-    Client->>Client: Verify ID Token Signature
+    Note over Client,RS: 5. Resource Access
+    Client->>RS: API Request (Bearer <access_token>)
+    RS->>Asteroid: GET /jwks.json
+    RS->>RS: Verify Access Token
+    RS-->>Client: Protected Resource
 ```
 
 ## Current Implementation Status
@@ -173,7 +159,6 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
   "aud": "test-client",
   "exp": 1763746030,
   "iat": 1763742430,
-  "auth_time": 1763742430,
   "nonce": "client-provided-nonce"
 }
 ```
@@ -186,9 +171,10 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 
 ## Security Considerations
 
-- Dummy user authentication (pre-seeded users from YAML) - for development only
+- **User Authentication**: Handled upstream via `X-Authenticated-User` header (no embedded auth)
+- **User Existence Validation**: Lazy loading with existence check during token generation
 - Auth codes expire after 5 minutes
-- Access tokens expire after 1 hour
+- Access tokens expire after 1 hour  
 - Refresh tokens expire after 30 days
 - ID tokens expire after 1 hour
 - Automatic cleanup of expired tokens and auth codes
@@ -197,4 +183,4 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 - Redirect URI validation against registered URIs
 - TTL-based token storage with automatic expiration
 - JWT signature verification via JWKS endpoint
-- Standard OIDC claims in ID tokens (iss, sub, aud, exp, iat, auth_time)
+- Standard OIDC claims in ID tokens (iss, sub, aud, exp, iat, nonce)

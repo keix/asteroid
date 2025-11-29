@@ -6,11 +6,6 @@ import (
 	"asteroid/internal/store/entity"
 )
 
-type UserStore interface {
-	GetUserByID(ctx context.Context, id string) (*entity.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
-}
-
 type ClientStore interface {
 	GetClient(ctx context.Context, id string) (*entity.Client, error)
 }
@@ -37,7 +32,6 @@ type NonceStore interface {
 }
 
 type Stores struct {
-	User     UserStore
 	Client   ClientStore
 	AuthCode AuthCodeStore
 	Token    TokenStore

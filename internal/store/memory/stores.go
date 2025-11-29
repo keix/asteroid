@@ -14,7 +14,6 @@ func NewStores(cfg *config.Config) (*store.Stores, error) {
 func NewStoresWithContext(ctx context.Context, cfg *config.Config) (*store.Stores, error) {
 	// KeyStore and JWTStore removed - using signing.Manager instead
 	return &store.Stores{
-		User:     NewUserStore(),
 		Client:   NewClientStore(),
 		AuthCode: NewAuthCodeStore(),
 		Token:    NewTokenStore(ctx),

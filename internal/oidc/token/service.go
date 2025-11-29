@@ -13,15 +13,17 @@ import (
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
+	"asteroid/internal/userinfo"
 )
 
 // Service handles token business logic
 type Service struct {
-	AuthCodeStore  store.AuthCodeStore
-	TokenStore     store.TokenStore
-	ClientStore    store.ClientStore
-	SigningService *signing.Service
-	Issuer         string
+	AuthCodeStore    store.AuthCodeStore
+	TokenStore       store.TokenStore
+	ClientStore      store.ClientStore
+	SigningService   *signing.Service
+	UserinfoProvider userinfo.Provider
+	Issuer           string
 }
 
 // NewService creates a new token service
@@ -30,14 +32,16 @@ func NewService(
 	tokenStore store.TokenStore,
 	clientStore store.ClientStore,
 	signingService *signing.Service,
+	userinfoProvider userinfo.Provider,
 	issuer string,
 ) *Service {
 	return &Service{
-		AuthCodeStore:  authCodeStore,
-		TokenStore:     tokenStore,
-		ClientStore:    clientStore,
-		SigningService: signingService,
-		Issuer:         issuer,
+		AuthCodeStore:    authCodeStore,
+		TokenStore:       tokenStore,
+		ClientStore:      clientStore,
+		SigningService:   signingService,
+		UserinfoProvider: userinfoProvider,
+		Issuer:           issuer,
 	}
 }
 
@@ -135,6 +139,16 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		}
 	}
 
+	// Step 4.5: User Existence Verification
+	// Verify user still exists before generating tokens
+	_, err = s.UserinfoProvider.Fetch(ctx, authCode.UserID)
+	if err != nil {
+		if errors.Is(err, userinfo.ErrUserNotFound) {
+			return nil, ErrorInvalidGrant, nil
+		}
+		return nil, 0, err
+	}
+
 	// Delete used authorization code
 	if err := s.AuthCodeStore.DeleteAuthCode(ctx, req.Code); err != nil {
 		return nil, 0, err
@@ -222,6 +236,16 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	// Validate refresh token belongs to client
 	if refreshTokenEntity.ClientID != req.ClientID {
 		return nil, ErrorInvalidGrant, nil
+	}
+
+	// User Existence Verification
+	// Verify user still exists before refreshing tokens
+	_, err = s.UserinfoProvider.Fetch(ctx, refreshTokenEntity.UserID)
+	if err != nil {
+		if errors.Is(err, userinfo.ErrUserNotFound) {
+			return nil, ErrorInvalidGrant, nil
+		}
+		return nil, 0, err
 	}
 
 	// Delete old refresh token

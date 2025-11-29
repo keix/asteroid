@@ -85,18 +85,31 @@ GET /jwks.json
 
 Public JWK used by clients and resource servers to validate tokens.
 
-## UserInfo Endpoint (Extension Point)
-Asteroid does not include a built-in userinfo endpoint by default. In real-world deployments, user attributes are typically provided by external systems — not embedded inside the OIDC provider.
+## User Authentication and Information
 
-The default implementation loads initial users from a YAML file into in-memory storage. For production use, you can replace this with a custom UserStore implementation that retrieves users from your existing identity system, database, or external API.
+Asteroid does not perform user authentication.  
+The authenticated user is provided by the upstream layer via:
 
-The OIDC core remains unchanged.  
-Simply provide your own UserStore, and Asteroid will use it automatically.
-
-For example, you may replace it with a proxy-backed implementation:
 ```
-stores.User = external.NewUserProxy(apiURL, httpClient)
+X-Authenticated-User: <subject>
 ```
+
+Asteroid resolves user information on demand through a pluggable provider:
+
+```go
+// Development
+userinfoProvider := source.NewYAMLProvider("./data/users.yaml")
+
+// Production
+userinfoProvider := source.NewHTTPProvider(apiURL, httpClient)
+```
+
+The provider acts as the trust boundary:  
+- If the user no longer exists → token issuance is denied  
+- No user data is stored or cached inside Asteroid  
+- Any identity backend can be integrated by implementing the interface
+
+This keeps OIDC authorization pure, independent, and decoupled from your authentication system.
 
 ## Storage
 A storage backend can be selected at build time:

@@ -13,8 +13,8 @@ import (
 	httpx "asteroid/internal/http"
 	"asteroid/internal/loader/data"
 	"asteroid/internal/oidc/signing"
-	"asteroid/internal/store"
 	"asteroid/internal/store/driver"
+	"asteroid/internal/userinfo/source"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,9 +40,14 @@ func Assemble() *Asteroid {
 		log.Fatalf("failed to initialize stores: %v", err)
 	}
 
-	if err := setupSeedData(stores); err != nil {
-		log.Fatalf("failed to setup seed data: %v", err)
+	// Load client seed data (clients still need eager loading)
+	loader := data.NewLoader("./data")
+	if err := loader.LoadAll(context.Background(), stores); err != nil {
+		log.Fatalf("failed to load seed data: %v", err)
 	}
+
+	// Initialize userinfo provider (lazy loading from YAML)
+	userinfoProvider := source.NewYAMLProvider("./data/users.yaml")
 
 	signingService := signing.NewFileService(
 		ctx,
@@ -56,7 +61,7 @@ func Assemble() *Asteroid {
 	r.Use(gin.Logger())
 	r.SetTrustedProxies(nil)
 
-	httpx.RegisterRoutes(r, stores, signingService, cfg)
+	httpx.RegisterRoutes(r, stores, signingService, userinfoProvider, cfg)
 
 	srv := &http.Server{
 		Addr:    ":8880",
@@ -99,9 +104,4 @@ func (a *Asteroid) Run() {
 	}
 
 	<-a.ctx.Done()
-}
-
-func setupSeedData(stores *store.Stores) error {
-	loader := data.NewLoader("./data")
-	return loader.LoadAll(context.Background(), stores)
 }
