@@ -2,7 +2,6 @@
 This document outlines the core architecture, layer separation, supported flows, and the interactions between the client application, the Asteroid provider, and the storage layer.
 
 ## Architecture Overview
-
 Asteroid follows a clean architecture pattern with clear separation of concerns across three layers: HTTP, Domain, and Storage.
 
 ### Layer Responsibilities
@@ -115,7 +114,7 @@ sequenceDiagram
 - **JWKS endpoint** (/jwks.json) with RSA public key distribution
 - **Authorization endpoint** (/authorize) with comprehensive security validation
 - **Token endpoint** (/token) supporting authorization_code and refresh_token grants
-- **ID Token generation** (JWT with RS256 signature)
+- **ID Token generation** (JWT with ES256 signature)
 - **Multiple storage backends** (memory, Redis, DynamoDB) with build-tag selection
 - **PKCE support** (RFC 7636) with S256 method validation
 - **Security features**:
@@ -145,7 +144,7 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 ### JWT Header
 ```json
 {
-  "alg": "RS256",
+  "alg": "ES256",
   "kid": "unique-key-id",
   "typ": "JWT"
 }
@@ -164,7 +163,7 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 ```
 
 ### Verification
-- ID tokens are signed with RSA private key using RS256 algorithm
+- ID tokens are signed with ECDSA private key using ES256 algorithm
 - Public key for verification is available at `/jwks.json` endpoint
 - Key ID (`kid`) in JWT header matches the one in JWKS
 - Standard JWT validation applies (signature, expiration, issuer, audience)
@@ -179,7 +178,7 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 - ID tokens expire after 1 hour
 - Automatic cleanup of expired tokens and auth codes
 - Client secret validation for token exchange
-- RSA key-based JWT signing (RS256) for ID tokens
+- ECDSA key-based JWT signing (ES256) for ID tokens
 - Redirect URI validation against registered URIs
 - TTL-based token storage with automatic expiration
 - JWT signature verification via JWKS endpoint

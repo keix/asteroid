@@ -10,3 +10,9 @@ clients:
     name: Test Client
     redirect_uris:
       - http://localhost:3000/callback
+  - id: mobile-app
+    name: Mobile App (Public Client)
+    client_type: public
+    redirect_uris:
+      - com.example.app://callback
+      - http://localhost:3000/mobile-callback

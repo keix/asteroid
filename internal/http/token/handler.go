@@ -18,12 +18,12 @@ type Handler struct {
 
 // NewHandler creates a new token handler
 func NewHandler(
+	issuer string,
+	clientStore store.ClientStore,
 	authCodeStore store.AuthCodeStore,
 	tokenStore store.TokenStore,
-	clientStore store.ClientStore,
-	signingService *signing.Service,
 	userinfoProvider userinfo.Provider,
-	issuer string,
+	signingService *signing.Service,
 ) *Handler {
 	return &Handler{
 		service: token.NewService(authCodeStore, tokenStore, clientStore, signingService, userinfoProvider, issuer),
@@ -44,6 +44,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		RefreshToken: httpReq.RefreshToken,
 		Scope:        httpReq.Scope,
 		CodeVerifier: httpReq.CodeVerifier,
+		AuthMethod:   httpReq.AuthMethod,
 	}
 
 	result, errType, err := h.service.ExchangeToken(c.Request.Context(), domainReq)

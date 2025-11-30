@@ -41,12 +41,12 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
   "jwks_uri": "https://auth.example.com/jwks.json",
   "response_types_supported": ["code"],
   "subject_types_supported": ["public"],
-  "id_token_signing_alg_values_supported": ["RS256"],
+  "id_token_signing_alg_values_supported": ["ES256"],
   "scopes_supported": ["openid"],
-  "token_endpoint_auth_methods_supported": ["client_secret_post"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
   "response_modes_supported": ["query"],
   "code_challenge_methods_supported": ["S256"],
-  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "nonce"]
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "nonce"]
 }
 ```
 
@@ -119,7 +119,7 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
     {
       "kty": "RSA",
       "use": "sig",
-      "alg": "RS256",
+      "alg": "ES256",
       "kid": "key-id",
       "n": "modulus",
       "e": "AQAB"
@@ -144,7 +144,7 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
 
 ### ID Token
 - **Format**: JWT (JSON Web Token)
-- **Algorithm**: RS256
+- **Algorithm**: ES256
 - **Lifetime**: 1 hour
 - **Claims**: Standard OIDC claims
 
@@ -156,7 +156,6 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
   "aud": "client-id",
   "exp": 1234567890,
   "iat": 1234567890,
-  "auth_time": 1234567890,
   "nonce": "request-nonce"
 }
 ```
@@ -304,7 +303,7 @@ type AuthCode struct {
 ## Future Enhancements
 
 ### Planned Features
-- Multiple client authentication methods (client_secret_basic, client_secret_jwt)
+- Additional client authentication methods (client_secret_jwt)
 - Key rotation with graceful transition
 - Extended scope support (profile, email, address, phone)
 - Token introspection and revocation endpoints

@@ -61,7 +61,7 @@ func Assemble() *Asteroid {
 	r.Use(gin.Logger())
 	r.SetTrustedProxies(nil)
 
-	httpx.RegisterRoutes(r, stores, signingService, userinfoProvider, cfg)
+	httpx.RegisterRoutes(r, cfg, stores, userinfoProvider, signingService)
 
 	srv := &http.Server{
 		Addr:    ":8880",

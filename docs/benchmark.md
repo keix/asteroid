@@ -1,5 +1,10 @@
-# Asteroid Benchmark
-This page summarizes the baseline performance of Asteroid — measured on a modern Gentoo Linux environment with a CPU-tuned Go toolchain.
+# Asteroid
+This document presents comprehensive performance benchmarks for Asteroid, demonstrating its low-latency OIDC operations and the performance benefits of its modernized ECDSA-based architecture.
+
+## Benchmark Overview
+This section presents baseline performance measurements for Asteroid's OIDC endpoints, demonstrating microsecond-level latencies achieved through its streamlined architecture.
+
+All benchmarks were conducted on bare metal Gentoo Linux using CPU-optimized Go toolchain, measuring the complete authorization code flow from discovery to token exchange.
 
 ## Environment
 - **OS:** Gentoo Linux 6.12.21 x86_64

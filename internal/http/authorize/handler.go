@@ -18,9 +18,9 @@ type Handler struct {
 // NewHandler creates a new authorization handler
 func NewHandler(
 	clientStore store.ClientStore,
-	userinfoProvider userinfo.Provider,
 	authCodeStore store.AuthCodeStore,
 	nonceStore store.NonceStore,
+	userinfoProvider userinfo.Provider,
 ) *Handler {
 	return &Handler{
 		service: authorize.NewService(clientStore, userinfoProvider, authCodeStore, nonceStore),
@@ -30,16 +30,6 @@ func NewHandler(
 // Handle processes authorization HTTP requests
 func (h *Handler) Handle(c *gin.Context) {
 	httpReq := NewRequest(c)
-
-	// Extract authenticated user from header
-	userID := c.GetHeader("X-Authenticated-User")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":             "unauthenticated",
-			"error_description": "X-Authenticated-User header required",
-		})
-		return
-	}
 
 	// Convert HTTP request to domain request
 	domainReq := &authorize.AuthorizeRequest{
@@ -51,7 +41,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		Nonce:               httpReq.Nonce,
 		CodeChallenge:       httpReq.CodeChallenge,
 		CodeChallengeMethod: httpReq.CodeChallengeMethod,
-		UserID:              userID,
+		UserID:              c.GetHeader("X-Authenticated-User"),
 	}
 
 	result, errType, err := h.service.Authorize(c.Request.Context(), domainReq)
