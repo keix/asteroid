@@ -6,8 +6,6 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // RS256Generator generates RSA key pairs for RS256 algorithm
@@ -20,11 +18,16 @@ func (g RS256Generator) Generate() (*KeyPair, error) {
 		return nil, err
 	}
 
+	keyID, err := GenerateKIDFromRSAPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return &KeyPair{
 		PrivateKey: privateKey,
 		PublicKey:  &privateKey.PublicKey,
 		Algorithm:  "RS256",
-		KeyID:      uuid.NewString(),
+		KeyID:      keyID,
 		CreatedAt:  time.Now(),
 	}, nil
 }

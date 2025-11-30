@@ -4,12 +4,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"asteroid/internal/crypto"
 )
@@ -34,16 +34,10 @@ func (f *File) SaveKey(kp *crypto.KeyPair) error {
 		return fmt.Errorf("failed to create key directory: %w", err)
 	}
 
-	// Save private key as PEM
-	privateKeyPath := filepath.Join(f.KeyDir, fmt.Sprintf("%s-%s.pem", kp.Algorithm, kp.KeyID))
+	// Save private key as PEM (kid-based filename)
+	privateKeyPath := filepath.Join(f.KeyDir, fmt.Sprintf("%s.pem", kp.KeyID))
 	if err := f.savePrivateKeyPEM(kp, privateKeyPath); err != nil {
 		return fmt.Errorf("failed to save private key: %w", err)
-	}
-
-	// Save metadata as JSON
-	metadataPath := filepath.Join(f.KeyDir, fmt.Sprintf("%s-%s.json", kp.Algorithm, kp.KeyID))
-	if err := f.saveMetadata(kp, metadataPath); err != nil {
-		return fmt.Errorf("failed to save metadata: %w", err)
 	}
 
 	return nil
@@ -62,28 +56,20 @@ func (f *File) LoadKeys() ([]*crypto.KeyPair, error) {
 	}
 
 	var keyPairs []*crypto.KeyPair
-	processedKeys := make(map[string]bool)
 
 	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".json") {
-			continue // Only process metadata files
+		if !strings.HasSuffix(entry.Name(), ".pem") {
+			continue // Only process PEM files
 		}
 
-		// Extract key ID from filename
-		baseName := strings.TrimSuffix(entry.Name(), ".json")
-		if processedKeys[baseName] {
-			continue // Already processed this key
-		}
-
-		keyPair, err := f.loadKeyPair(baseName)
+		keyPair, err := f.loadKeyPairFromPEM(entry.Name())
 		if err != nil {
 			// Log error but continue with other keys
-			fmt.Printf("Warning: failed to load key %s: %v\n", baseName, err)
+			fmt.Printf("Warning: failed to load key %s: %v\n", entry.Name(), err)
 			continue
 		}
 
 		keyPairs = append(keyPairs, keyPair)
-		processedKeys[baseName] = true
 	}
 
 	return keyPairs, nil
@@ -121,63 +107,39 @@ func (f *File) savePrivateKeyPEM(kp *crypto.KeyPair, path string) error {
 	})
 }
 
-// saveMetadata saves key metadata as JSON
-func (f *File) saveMetadata(kp *crypto.KeyPair, path string) error {
-	metadata := map[string]interface{}{
-		"algorithm":  kp.Algorithm,
-		"key_id":     kp.KeyID,
-		"created_at": kp.CreatedAt,
-	}
+// loadKeyPairFromPEM loads a key pair from PEM file and generates kid
+func (f *File) loadKeyPairFromPEM(filename string) (*crypto.KeyPair, error) {
+	path := filepath.Join(f.KeyDir, filename)
 
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(metadata)
-}
-
-// loadKeyPair loads a key pair from PEM and JSON files
-func (f *File) loadKeyPair(baseName string) (*crypto.KeyPair, error) {
-	// Load metadata
-	metadataPath := filepath.Join(f.KeyDir, baseName+".json")
-	metadata, err := f.loadMetadata(metadataPath)
+	privateKey, publicKey, err := f.loadPrivateKeyPEM(path)
 	if err != nil {
 		return nil, err
 	}
 
-	// Load private key
-	pemPath := filepath.Join(f.KeyDir, baseName+".pem")
-	privateKey, publicKey, err := f.loadPrivateKeyPEM(pemPath)
-	if err != nil {
-		return nil, err
+	// Generate kid from public key
+	var keyID string
+	switch pub := publicKey.(type) {
+	case *rsa.PublicKey:
+		keyID, err = crypto.GenerateKIDFromRSAPublicKey(pub)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate kid for RSA key: %w", err)
+		}
+	case *ecdsa.PublicKey:
+		keyID, err = crypto.GenerateKIDFromECDSAPublicKey(pub)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate kid for ECDSA key: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported public key type: %T", pub)
 	}
 
 	return &crypto.KeyPair{
 		PrivateKey: privateKey,
 		PublicKey:  publicKey,
-		Algorithm:  metadata["algorithm"].(string),
-		KeyID:      metadata["key_id"].(string),
+		Algorithm:  "ES256", // Fixed algorithm
+		KeyID:      keyID,
+		CreatedAt:  time.Now(), // Current time as we don't have metadata
 	}, nil
-}
-
-// loadMetadata loads metadata from JSON file
-func (f *File) loadMetadata(path string) (map[string]interface{}, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var metadata map[string]interface{}
-	if err := json.NewDecoder(file).Decode(&metadata); err != nil {
-		return nil, err
-	}
-
-	return metadata, nil
 }
 
 // loadPrivateKeyPEM loads a private key from PEM file

@@ -6,8 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // ES256Generator generates ECDSA key pairs for ES256 algorithm
@@ -20,11 +18,16 @@ func (g ES256Generator) Generate() (*KeyPair, error) {
 		return nil, err
 	}
 
+	keyID, err := GenerateKIDFromECDSAPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return &KeyPair{
 		PrivateKey: privateKey,
 		PublicKey:  &privateKey.PublicKey,
 		Algorithm:  "ES256",
-		KeyID:      uuid.NewString(),
+		KeyID:      keyID,
 		CreatedAt:  time.Now(),
 	}, nil
 }
