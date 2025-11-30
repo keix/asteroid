@@ -129,13 +129,27 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 	}
 
 	// Step 4: PKCE Validation (RFC 7636)
-	// Proof Key for Code Exchange validation for public clients
-	if authCode.CodeChallenge != "" {
+	// Proof Key for Code Exchange validation - mandatory for public clients
+	if client.IsPublicClient() {
+		// Public clients MUST use PKCE
+		if authCode.CodeChallenge == "" {
+			return nil, ErrorInvalidGrant, nil // No PKCE challenge stored
+		}
 		if req.CodeVerifier == "" {
-			return nil, ErrorInvalidRequest, nil
+			return nil, ErrorInvalidRequest, nil // No code_verifier provided
 		}
 		if !validatePKCE(authCode.CodeChallenge, req.CodeVerifier, authCode.CodeChallengeMethod) {
-			return nil, ErrorInvalidGrant, nil
+			return nil, ErrorInvalidGrant, nil // PKCE validation failed
+		}
+	} else {
+		// Confidential clients: PKCE is optional but must be validated if present
+		if authCode.CodeChallenge != "" {
+			if req.CodeVerifier == "" {
+				return nil, ErrorInvalidRequest, nil
+			}
+			if !validatePKCE(authCode.CodeChallenge, req.CodeVerifier, authCode.CodeChallengeMethod) {
+				return nil, ErrorInvalidGrant, nil
+			}
 		}
 	}
 

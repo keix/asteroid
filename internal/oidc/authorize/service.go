@@ -104,7 +104,11 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, ErrorInvalidRedirectURI, nil
 	}
 
-	// Get user (validate authenticated user exists)
+	// Validate authenticated user exists (from X-Authenticated-User header)
+	if req.UserID == "" {
+		return nil, ErrorAccessDenied, nil
+	}
+
 	_, err = s.UserinfoProvider.Fetch(ctx, req.UserID)
 	if err != nil {
 		if errors.Is(err, userinfo.ErrUserNotFound) {

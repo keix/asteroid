@@ -29,8 +29,8 @@ func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTT
 	manager := New(keyPersister)
 	rotator := NewRotator(manager, idTokenTTL)
 
-	// Create scheduler for automatic rotation (default algorithms)
-	algorithms := []string{"ES256"} // Testing with ECDSA algorithm
+	// Create scheduler for automatic rotation (default algorithm: ES256)
+	algorithms := []string{"ES256"} // Default algorithm - idempotent key ID
 	scheduler := NewScheduler(rotator, manager, rotationInterval, algorithms)
 
 	service := &Service{
@@ -42,8 +42,18 @@ func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTT
 		done:      make(chan struct{}),
 	}
 
-	// Generate initial keys for all algorithms (no file dependency)
+	// Load existing keys from persistence layer
+	if err := manager.LoadExistingKeys(); err != nil {
+		fmt.Printf("Warning: failed to load existing keys: %v\n", err)
+	}
+
+	// Generate initial keys only if no existing keys for algorithm
 	for _, algorithm := range algorithms {
+		if existingKey, _ := manager.GetActiveKey(algorithm); existingKey != nil {
+			fmt.Printf("Found existing key for algorithm: %s\n", algorithm)
+			continue // Skip generation if key exists
+		}
+
 		if _, err := rotator.EnsureActiveKey(algorithm); err != nil {
 			fmt.Printf("Failed to generate initial key for %s: %v\n", algorithm, err)
 			// Continue with other algorithms

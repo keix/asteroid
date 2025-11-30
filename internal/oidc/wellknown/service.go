@@ -21,7 +21,7 @@ func (s *Service) GetOpenIDConfiguration() *OpenIDConfiguration {
 		JwksURI:                           s.issuer + "/jwks.json",
 		ResponseTypesSupported:            []string{"code"},
 		SubjectTypesSupported:             []string{"public"},
-		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
+		IDTokenSigningAlgValuesSupported:  []string{"ES256"},
 		ScopesSupported:                   []string{"openid"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		ResponseModesSupported:            []string{"query"},
