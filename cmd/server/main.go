@@ -1,5 +1,5 @@
-// Asteroid starts with a single call.
-// Small pieces, loosely joined — clear, transparent, and close to the metal.
+// Asteroid starts with one call.
+// Everything is assembled here — nothing extra, nothing hidden.
 
 package main
 
