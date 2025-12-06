@@ -30,6 +30,8 @@ Asteroid is configured using environment variables:
 | ----------------------- | --------------------- | ----------------------- |
 | `OIDC_ISSUER`           | Issuer URL            | `http://localhost:8880` |
 
+For production deployments, be sure to read the Security Note below.
+
 ## Available Endpoints
 For detailed flow diagrams and architecture documentation, see [`docs/architecture.md`](docs/architecture.md).
 
@@ -140,6 +142,12 @@ We recommend placing it behind a reverse proxy:
   A clean, minimal setup where TLS termination and access control are fully handled by ALB, keeping Asteroid isolated from direct exposure and free from transport-layer concerns.
 
 By delegating TLS termination, rate limiting, and access policies to the upstream layer, the Asteroid binary can remain small, simple, and secure—consistent with its UNIX-inspired design philosophy.
+
+Asteroid runs on HTTP by design. In development, running the issuer over http://localhost is fully supported and expected.
+
+However, in production, all OIDC clients MUST access the issuer over HTTPS, with TLS termination handled by your upstream reverse proxy (nginx, Envoy, ALB, etc.).
+
+This ensures the Asteroid binary remains transport-layer agnostic while still complying with OpenID Connect security requirements.
 
 ## License
 Copyright KEI SAWAMURA 2025 (a.k.a keix)  

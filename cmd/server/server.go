@@ -64,8 +64,11 @@ func Assemble() *Asteroid {
 	httpx.RegisterRoutes(r, cfg, stores, userinfoProvider, signingService)
 
 	srv := &http.Server{
-		Addr:    ":8880",
-		Handler: r,
+		Addr:           ":8880",
+		Handler:        r,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
 
 	return &Asteroid{
@@ -102,6 +105,4 @@ func (a *Asteroid) Run() {
 	if err := a.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("could not start server: %v", err)
 	}
-
-	<-a.ctx.Done()
 }
