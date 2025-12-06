@@ -129,8 +129,7 @@ sequenceDiagram
 
 ### Future Implementation
 - **UserInfo endpoint** (/userinfo) - framework exists, not exposed
-- **Client authentication methods**: client_secret_basic, client_secret_jwt, private_key_jwt
-- **Key rotation** with graceful transition
+- **Extended client authentication**: client_secret_jwt, private_key_jwt (client_secret_basic already implemented)
 - **Extended scope handling** (profile, email, address, phone)
 - **Dynamic user authentication** (currently simplified to pre-configured users)
 - **Additional response modes** (fragment, form_post)

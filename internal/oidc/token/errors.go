@@ -4,7 +4,8 @@ package token
 type ErrorType int
 
 const (
-	ErrorInvalidRequest ErrorType = iota + 1
+	ErrorNone ErrorType = iota
+	ErrorInvalidRequest
 	ErrorInvalidClient
 	ErrorInvalidGrant
 	ErrorUnauthorizedClient

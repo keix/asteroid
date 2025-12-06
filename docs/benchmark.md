@@ -4,7 +4,7 @@ This document presents comprehensive performance benchmarks for Asteroid, demons
 ## Benchmark Overview
 This section presents baseline performance measurements for Asteroid's OIDC endpoints, demonstrating microsecond-level latencies achieved through its streamlined architecture.
 
-All benchmarks were conducted on bare metal Gentoo Linux using CPU-optimized Go toolchain, measuring the complete authorization code flow from discovery to token exchange.
+All benchmarks were conducted on native Gentoo Linux using CPU-optimized Go toolchain, measuring the complete authorization code flow from discovery to token exchange.
 
 ## Environment
 - **OS:** Gentoo Linux 6.12.21 x86_64
