@@ -54,6 +54,11 @@ func (ts *TokenStore) GetRefreshToken(ctx context.Context, token string) (*entit
 		return nil, err
 	}
 
+	now := time.Now()
+	if now.After(refreshToken.ExpiresAt) {
+		return nil, entity.ErrRefreshTokenExpired
+	}
+
 	return &refreshToken, nil
 }
 

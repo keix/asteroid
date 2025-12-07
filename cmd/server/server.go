@@ -52,8 +52,8 @@ func Assemble() *Asteroid {
 	signingService := signing.NewFileService(
 		ctx,
 		"./keys",
-		1*time.Minute,
-		1*time.Minute,
+		7*24*time.Hour, // Key Retention: 7 days
+		24*time.Hour,   // Key Rotation: 1 day
 	)
 
 	r := gin.New()
