@@ -6,10 +6,16 @@ Asteroid is composed of small, independent components that work together loosely
 
 This design aligns with the UNIX philosophy: each unit does one thing well, keeping the whole system simple, transparent, and easy to understand.
 
-## Prerequisites
-- Go 1.24 or later (Tested with Go 1.24.6)
+## Requirements
+Asteroid needs only a compiler; Go 1.24+ is sufficient.  
+The recommended setup is the reproducible Nix development shell:
 
-## Running Locally
+```
+nix develop
+```
+Any additional services (such as Redis or DynamoDB) can be provided by your environment.
+
+## Running the Server
 1. Build the server:
 ```bash
 go mod tidy
