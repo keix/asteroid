@@ -1,3 +1,6 @@
+//go:build dynamodb
+// +build dynamodb
+
 package dynamodb
 
 import (
