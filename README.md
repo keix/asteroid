@@ -88,7 +88,6 @@ GET /jwks.json
 Public JWK used by clients and resource servers to validate tokens.
 
 ## User Authentication and Information
-
 Asteroid does not perform user authentication.  
 The authenticated user is provided by the upstream layer via:
 
@@ -107,7 +106,7 @@ userinfoProvider := source.NewHTTPProvider(apiURL, httpClient)
 ```
 
 The provider acts as the trust boundary:  
-- If the user no longer exists → token issuance is denied  
+- If the user no longer exists - token issuance is denied  
 - No user data is stored or cached inside Asteroid  
 - Any identity backend can be integrated by implementing the interface
 
@@ -123,9 +122,21 @@ go build -tags [memory, redis, dynamodb] -o bin/asteroid ./cmd/server
 Redis provides fast, TTL-based persistence and is recommended for production-grade authorization code and token storage.
 
 ## Docker
-Asteroid is not Dockerized by default. A simple Dockerfile is included for convenience, but it is optional and can be extended as needed.
+Asteroid is not dockerized by default — it runs as a small, self-contained Go binary.
 
-Example configurations for Redis and DynamoDB Local are available under `examples/docker/`.
+For developers who use Redis or DynamoDB as storage backends, minimal Docker Compose
+examples are available under:
+
+```
+examples/docker/
+```
+
+These examples include only the essential services needed for local development:
+
+- Redis — fast, TTL-based store for authorization codes and tokens
+- DynamoDB — simple, file-backed key-value storage for testing distributed environments
+
+The examples contain only the essentials — nothing more.
 
 ## Security Note
 Asteroid automatically generates signing keys at startup and handles key rotation transparently. Keys are never stored in version control and are managed entirely through the built-in key management system.
