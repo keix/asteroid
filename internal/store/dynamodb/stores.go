@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"context"
+	"time"
 
 	"asteroid/internal/config"
 	"asteroid/internal/store"
@@ -11,13 +12,19 @@ import (
 )
 
 func NewStores(cfg *config.Config) (*store.Stores, error) {
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
+	// Create context with timeout for AWS config loading
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx,
 		awsconfig.WithRegion(cfg.DynamoDBRegion),
+		// Remove verbose logging for performance
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	// Configure DynamoDB client
 	client := dynamodb.NewFromConfig(awsCfg)
 
 	return &store.Stores{

@@ -50,7 +50,6 @@ func HandleDomainError(c *gin.Context, errType authorize.ErrorType, req *Request
 
 // HandleSystemError handles system errors
 func HandleSystemError(c *gin.Context, err error, req *Request) {
-	// TODO: Add proper error logging here
 	oidcErr := errServerError
 
 	// System errors are always returned as JSON (don't redirect)
