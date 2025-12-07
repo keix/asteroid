@@ -83,8 +83,8 @@ func (ts *TokenStore) GetRefreshToken(ctx context.Context, token string) (*entit
 		return nil, err
 	}
 
-	// Check if expired (DynamoDB TTL might not delete immediately)
-	if time.Now().After(refreshToken.ExpiresAt) {
+	now := time.Now()
+	if now.After(refreshToken.ExpiresAt) {
 		return nil, entity.ErrRefreshTokenExpired
 	}
 
