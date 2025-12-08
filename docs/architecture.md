@@ -115,7 +115,7 @@ sequenceDiagram
 - **Authorization endpoint** (/authorize) with comprehensive security validation
 - **Token endpoint** (/token) supporting authorization_code and refresh_token grants
 - **ID Token generation** (JWT with ES256 signature)
-- **Multiple storage backends** (memory, Redis, DynamoDB) with build-tag selection
+- **Multiple storage backends** (memory, Redis) with build-tag selection
 - **PKCE support** (RFC 7636) with S256 method validation
 - **Security features**:
   - Nonce replay protection with per-client isolation
