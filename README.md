@@ -13,7 +13,7 @@ The recommended setup is the reproducible Nix development shell:
 ```
 nix develop
 ```
-Any additional services (such as Redis or DynamoDB) can be provided by your environment.
+Inside the Nix shell, Redis is available by default.
 
 ## Running the Server
 1. Build the server:
@@ -119,18 +119,18 @@ The provider acts as the trust boundary:
 This keeps OIDC authorization pure, independent, and decoupled from your authentication system.
 
 ## Storage
-A storage backend can be selected at build time:
-
+Asteroid includes an in-memory store by default.  
+If you want to use Redis, build with:
 ```
-go build -tags [memory, redis, dynamodb] -o bin/asteroid ./cmd/server
+go build -tags redis -o bin/asteroid ./cmd/server
 ```
 
-Redis provides fast, TTL-based persistence and is recommended for production-grade authorization code and token storage.
+Redis is recommended for production-grade authorization code and token storage.
 
 ## Docker
 Asteroid is not dockerized by default — it runs as a small, self-contained Go binary.
 
-For developers who use Redis or DynamoDB as storage backends, minimal Docker Compose
+For developers who use Redis as storage backend, minimal Docker Compose
 examples are available under:
 
 ```
@@ -140,7 +140,6 @@ examples/docker/
 These examples include only the essential services needed for local development:
 
 - Redis — fast, TTL-based store for authorization codes and tokens
-- DynamoDB — simple, file-backed key-value storage for testing distributed environments
 
 The examples contain only the essentials — nothing more.
 

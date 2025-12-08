@@ -1,4 +1,4 @@
-//go:build memory || (!dynamodb && !redis)
+//go:build memory || !redis
 
 package driver
 

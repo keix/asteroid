@@ -3,7 +3,7 @@ This document defines the technical specifications for Asteroid, a minimal OpenI
 
 ## Specification Overview
 
-Asteroid implements OpenID Connect Core 1.0 specification with security enhancements including PKCE, nonce validation, and comprehensive error handling. The system is designed with a clean separation between business logic and storage layers, supporting memory, Redis, and DynamoDB backends.
+Asteroid implements OpenID Connect Core 1.0 specification with security enhancements including PKCE, nonce validation, and comprehensive error handling. The system is designed with a clean separation between business logic and storage layers, supporting memory and Redis backends.
 
 ## Supported Standards
 
@@ -201,12 +201,10 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
 ### Supported Backends
 - **Memory**: In-memory maps with cleanup goroutines
 - **Redis**: JSON serialization with TTL
-- **DynamoDB**: AttributeValue with DynamoDB TTL
 
 ### Build Tags
 - `//go:build memory` - Memory-only build
 - `//go:build redis` - Redis backend build
-- `//go:build dynamodb` - DynamoDB backend build
 
 ### Data Models
 
@@ -270,7 +268,7 @@ type AuthCode struct {
 ### Environment Variables
 - `ASTEROID_ISSUER`: OIDC issuer URL
 - `ASTEROID_PORT`: Server port (default: 8880)
-- `ASTEROID_STORAGE`: Storage backend (memory/redis/dynamodb)
+- `ASTEROID_STORAGE`: Storage backend (memory/redis)
 
 ### Data Loading
 - **Clients**: `data/clients.yaml`
