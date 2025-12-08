@@ -13,7 +13,8 @@ The recommended setup is the reproducible Nix development shell:
 ```
 nix develop
 ```
-Inside the Nix shell, Redis is available by default.
+
+Inside the Nix shell, Redis is available by default. It is a pure Go binary, with no runtime dependencies or container requirements.
 
 ## Running the Server
 1. Build the server:
