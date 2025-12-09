@@ -13,7 +13,6 @@
       buildInputs = [
         pkgs.go
         pkgs.golangci-lint
-        pkgs.act
         pkgs.redis
       ];
     };
