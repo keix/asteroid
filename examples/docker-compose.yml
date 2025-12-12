@@ -1,0 +1,47 @@
+services:
+  asteroid:
+    build:
+      context: ..
+      dockerfile: ./examples/asteroid/Dockerfile
+    container_name: asteroid
+    depends_on:
+      - redis
+    environment:
+      REDIS_ADDR: "redis:6379"
+    networks:
+      - asteroid_network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: asteroid-nginx
+    ports:
+      - "8880:80"
+      - "443:443"
+    depends_on:
+      - asteroid
+    volumes:
+      - ./nginx/nginx.conf:/opt/nginx/nginx.conf:ro
+    networks:
+      - asteroid_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: asteroid-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - asteroid_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  asteroid_network:
+
+volumes:
+  redis_data:
