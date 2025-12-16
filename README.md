@@ -1,5 +1,5 @@
 # Asteroid
-An OpenID Connect Core 1.0 Provider implementation written in Go using the Gin framework.
+An OpenID Connect Core 1.0–compatible provider written in Go, focused on authorization and token issuance.
 
 ## Why Asteroid?
 Asteroid is composed of small, independent components that work together loosely — much like a cluster of asteroids forming a stable system.
@@ -14,7 +14,7 @@ The recommended setup is the reproducible Nix development shell:
 nix develop
 ```
 
-Inside the Nix shell, Redis is available by default. It is a pure Go binary, with no runtime dependencies or container requirements.
+Inside the Nix shell, Redis is available by default.
 
 ## Running the Server
 1. Build the server:
@@ -47,22 +47,14 @@ For detailed flow diagrams and architecture documentation, see [`docs/architectu
 GET /.well-known/openid-configuration
 ```
 
+Returns the OpenID Connect provider metadata used by clients for discovery.
+
 ### Authorization
 ```
 GET /authorize
 ```
 
-Implements the authorization code flow for a pre-seeded test user.  
-
-Query parameters:
-- `client_id` — must be a registered client
-- `redirect_uri` — must match one of the client's allowed URIs
-- `response_type` — only `code` is supported
-- `scope` — must include `openid` for OpenID Connect flows
-- `state` — optional value echoed back on redirect
-- `nonce` — optional nonce value included in ID Token
-
-Returns HTTP redirects with `code` (and `state`) appended to the provided `redirect_uri`, or an error response if validation fails.
+Implements the authorization code flow for a pre-seeded test user.
 
 ### Token Exchange
 ```
@@ -70,22 +62,6 @@ POST /token
 ```
 
 Exchanges authorization codes for access and refresh tokens, or refreshes existing tokens.
-
-Form parameters:
-- `grant_type` — `authorization_code` or `refresh_token`
-- `client_id` — registered client identifier
-- `client_secret` — client authentication secret
-
-For authorization code grant:
-- `code` — authorization code from `/authorize` endpoint
-- `redirect_uri` — must match the original authorization request
-
-For refresh token grant:
-- `refresh_token` — valid refresh token
-
-Returns JSON with `access_token`, `token_type`, `expires_in`, `refresh_token`, `scope`, and `id_token` (for OpenID Connect flows).
-
-The `id_token` is a signed JWT containing user identity claims, compliant with OpenID Connect Core 1.0 specification.
 
 ### JSON Web Key Set (JWKS)
 ```
@@ -95,7 +71,7 @@ GET /jwks.json
 Public JWK used by clients and resource servers to validate tokens.
 
 ## User Authentication and Information
-Asteroid does not perform user authentication.  
+Asteroid does not perform user authentication itself.  
 The authenticated user is provided by the upstream layer via:
 
 ```
@@ -112,7 +88,8 @@ userinfoProvider := source.NewYAMLProvider("./data/users.yaml")
 userinfoProvider := source.NewHTTPProvider(apiURL, httpClient)
 ```
 
-The provider acts as the trust boundary:  
+The provider acts as the trust boundary:
+
 - If the user no longer exists - token issuance is denied  
 - No user data is stored or cached inside Asteroid  
 - Any identity backend can be integrated by implementing the interface
@@ -122,6 +99,7 @@ This keeps OIDC authorization pure, independent, and decoupled from your authent
 ## Storage
 Asteroid includes an in-memory store by default.  
 If you want to use Redis, build with:
+
 ```
 go build -tags redis -o bin/asteroid ./cmd/server
 ```
@@ -132,17 +110,9 @@ Redis is recommended for production-grade authorization code and token storage.
 Asteroid is not dockerized by default — it runs as a small, self-contained Go binary.
 
 For developers who use Redis as storage backend, minimal Docker Compose
-examples are available under:
+examples are available under the [examples/](examples/) directory.
 
-```
-examples/docker/
-```
-
-These examples include only the essential services needed for local development:
-
-- Redis — fast, TTL-based store for authorization codes and tokens
-
-The examples contain only the essentials — nothing more.
+The examples contain only the essentials.
 
 ## Security Note
 Asteroid automatically generates signing keys at startup and handles key rotation transparently. Keys are never stored in version control and are managed entirely through the built-in key management system.
@@ -160,12 +130,37 @@ We recommend placing it behind a reverse proxy:
 
 By delegating TLS termination, rate limiting, and access policies to the upstream layer, the Asteroid binary can remain small, simple, and secure—consistent with its UNIX-inspired design philosophy.
 
-Asteroid runs on HTTP by design. In development, running the issuer over http://localhost is fully supported and expected.
+Asteroid speaks HTTP internally. In production, clients must access the issuer over HTTPS, with TLS termination
+handled entirely by the upstream proxy (nginx, Envoy, ALB, etc.). This keeps Asteroid transport-layer agnostic while remaining compliant with OIDC.
 
-However, in production, all OIDC clients MUST access the issuer over HTTPS, with TLS termination handled by your upstream reverse proxy (nginx, Envoy, ALB, etc.).
+## Recommended Deployment
+A well-engineered Linux or BSD system remains one of the most robust and predictable foundations available.
 
-This ensures the Asteroid binary remains transport-layer agnostic while still complying with OpenID Connect security requirements.
+Full control over the kernel, filesystem, resource limits, and networking policies provides a level of transparency that containerized or serverless runtimes cannot match.
+
+A typical production topology is:
+
+```
+Internet / Clients
+↓
+TLS termination (NGINX / ALB / Envoy)
+↓
+Asteroid (listening on a UNIX domain socket)
+↓
+Redis (volatile session/cache storage)
+```
+
+This model provides:
+
+- clear separation of responsibilities (TLS, HTTP, routing handled by the proxy)
+- predictable performance by running Asteroid as a native Linux binary
+- minimal moving parts and no container overhead
+- a stable environment suitable for EC2, on-premise Linux, or any POSIX system
+
+Docker is included only as an example for local development. For production systems, 
+deploying Asteroid directly on Linux (e.g., Amazon EC2)
+with a reverse proxy and a UNIX domain socket is the recommended configuration.
 
 ## License
 Copyright KEI SAWAMURA 2025 (a.k.a keix)  
-Asteroid is licensed under the MIT License. Copying, and modifying is encouraged and appreciated.
+Asteroid is licensed under the MIT License. Copying and modifying is encouraged and appreciated.
