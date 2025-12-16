@@ -111,7 +111,7 @@ sequenceDiagram
 
 ### Implemented
 - **OIDC Discovery** (/.well-known/openid-configuration)
-- **JWKS endpoint** (/jwks.json) with RSA public key distribution
+- **JWKS endpoint** (/jwks.json) with EC public key distribution (ES256)
 - **Authorization endpoint** (/authorize) with comprehensive security validation
 - **Token endpoint** (/token) supporting authorization_code and refresh_token grants
 - **ID Token generation** (JWT with ES256 signature)
@@ -124,7 +124,7 @@ sequenceDiagram
   - Authorization code expiration (5 minutes)
   - Access token expiration (1 hour)
   - Refresh token rotation
-- **Complete OIDC Core 1.0 compliance**
+- **Implements a minimal, security-complete subset of OIDC Core 1.0**
 - **Comprehensive test suite** with unit tests for all critical paths
 
 ### Future Implementation

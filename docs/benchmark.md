@@ -12,7 +12,7 @@ All benchmarks were conducted on native Gentoo Linux using CPU-optimized Go tool
 - **libc:** glibc 2.41-r5
 - **Go:** Go 1.24.6 (locally built, CPU-tuned)
 
-All benchmarks were executed on bare metal with no container overhead.
+Measured with zero container overhead.
 
 ## Benchmark Method
 One benchmark "set" performs the full OIDC sequence:

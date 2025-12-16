@@ -1,18 +1,18 @@
 # Asteroid
-This example shows how to run Asteroid in a real-world deployment topology using Docker.
+This directory provides a Docker example of Asteroid.
 
 **Note:**  
 In production, Asteroid is intended to run behind a reverse proxy and typically listens on a UNIX domain socket rather than a TCP port. 
 This example uses plain HTTP on port 8880 only for ease of demonstration.
 
 ## Docker Example
-This directory provides a runnable example of the Asteroid OIDC provider using:
+The example includes the following components:
 
-- Asteroid on port 8880
-- NGINX as a reverse proxy (also on 8880)
-- Redis as volatile session/cache storage
+- Asteroid (OIDC provider)
+- NGINX (reverse proxy)
+- Redis (volatile session/cache storage)
 
-The example environment demonstrates how a complete OIDC deployment is structured.
+These services form a minimal but complete OIDC deployment topology for local development.
 
 ## Run the Example
 Run the following command from within the examples/ directory:
@@ -21,7 +21,7 @@ Run the following command from within the examples/ directory:
 docker compose up --build
 ```
 
-When all services start, the OIDC endpoints become available at:
+After startup, the following OIDC endpoints become available:
 
 ```
 http://localhost:8880/.well-known/openid-configuration
@@ -33,15 +33,16 @@ http://localhost:8880/jwks.json
 If these resolve, Asteroid is running correctly.
 
 ## Why do NGINX and Asteroid both use port 8880?
-To keep the issuer consistent. OpenID Connect requires that the issuer URL matches the externally reachable endpoint.
+In this example, all components use HTTP on port 8880 so that the OpenID
+Connect issuer URL matches the externally reachable endpoint, as required by OIDC.
 
 The example aligns:
+- NGINX listens on port 8880
+- Asteroid serves its HTTP endpoint on port 8880
+- the issuer is configured to use port 8880
 
-- the NGINX listen port  
-- the Asteroid backend port  
-- the configured issuer
-
-All to 8880, ensuring clients resolve correct URLs.
+This uniform port setup avoids issuer mismatches during local development.
+It is only for demonstration purposes; production deployments typically use TLS at the proxy layer (e.g., port 443) while Asteroid runs on a UNIX domain socket.
 
 ## Redis Warning About vm.overcommit_memory
 You may see:
@@ -60,33 +61,3 @@ sudo sysctl vm.overcommit_memory=1
 
 Asteroid does not modify host settings;
 operators may choose to adjust kernel parameters.
-
-## Recommended Deployment
-A well-engineered Linux or BSD system remains one of the most robust and predictable foundations available.
-
-Full control over the kernel, filesystem,
-resource limits, and networking policies provides a level of transparency that containerized or serverless runtimes cannot match.
-
-A typical production topology is:
-
-```
-Internet / Clients
-↓
-TLS termination (NGINX / ALB / Envoy)
-↓
-Asteroid (listening on a UNIX domain socket)
-↓
-Redis (volatile session/cache storage)
-```
-
-This model provides:
-
-- clear separation of responsibilities (TLS, HTTP, routing handled by the proxy)
-- predictable performance by running Asteroid as a native Linux binary
-- minimal moving parts and no container overhead
-- a stable environment suitable for EC2, on-premise Linux, or any POSIX system
-
-Docker is included only as an example for local development. For production systems, 
-deploying Asteroid directly on Linux (e.g., Amazon EC2)
-with a reverse proxy and a UNIX domain socket is the recommended configuration.
-

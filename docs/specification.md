@@ -1,9 +1,8 @@
 # Asteroid
-This document defines the technical specifications for Asteroid, a minimal OpenID Connect Provider implementation designed for production use with multiple storage backend support.
+This document defines the technical specifications for Asteroid, a minimal OpenID Connect Core 1.0 provider focused on authorization flows and token issuance.
 
 ## Specification Overview
-
-Asteroid implements OpenID Connect Core 1.0 specification with security enhancements including PKCE, nonce validation, and comprehensive error handling. The system is designed with a clean separation between business logic and storage layers, supporting memory and Redis backends.
+Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security enhancements including PKCE, nonce validation, and comprehensive error handling. The system is designed with a clean separation between business logic and storage layers, supporting memory and Redis backends.
 
 ## Supported Standards
 
@@ -117,12 +116,13 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
 {
   "keys": [
     {
-      "kty": "RSA",
+      "kty": "EC",
       "use": "sig",
       "alg": "ES256",
       "kid": "key-id",
-      "n": "modulus",
-      "e": "AQAB"
+      "crv": "P-256",
+      "x": "base64url-encoded-x-coordinate",
+      "y": "base64url-encoded-y-coordinate"
     }
   ]
 }
@@ -145,7 +145,7 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
 ### ID Token
 - **Format**: JWT (JSON Web Token)
 - **Algorithm**: ES256
-- **Lifetime**: 1 hour
+- **Lifetime**: 15 minutes
 - **Claims**: Standard OIDC claims
 
 **ID Token Claims**:
@@ -203,7 +203,7 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
 - **Redis**: JSON serialization with TTL
 
 ### Build Tags
-- `//go:build memory` - Memory-only build
+- `//go:build memory || !redis` - Memory backend (default fallback)
 - `//go:build redis` - Redis backend build
 
 ### Data Models
@@ -211,20 +211,21 @@ Asteroid implements OpenID Connect Core 1.0 specification with security enhancem
 **Client Entity**:
 ```go
 type Client struct {
-    ID           string   `json:"id"`
-    Secret       string   `json:"secret"`
-    RedirectURIs []string `json:"redirect_uris"`
-    Name         string   `json:"name"`
+    ID                      string   `json:"id"`
+    Secret                  string   `json:"secret"`
+    RedirectURIs            []string `json:"redirect_uris"`
+    Name                    string   `json:"name"`
+    TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+    ClientType              string   `json:"client_type"` // "confidential" or "public"
 }
 ```
 
 **User Entity**:
 ```go
-type User struct {
-    ID           string    `json:"id"`
-    Email        string    `json:"email"`
-    PasswordHash string    `json:"password_hash"`
-    CreatedAt    time.Time `json:"created_at"`
+type YAMLUser struct {
+    Sub    string                 `yaml:"sub"`
+    Email  string                 `yaml:"email"`
+    Claims map[string]interface{} `yaml:"claims"`
 }
 ```
 
@@ -253,7 +254,6 @@ type AuthCode struct {
 - `unsupported_response_type`: Response type not supported
 - `invalid_scope`: Requested scope invalid
 - `server_error`: Internal server error
-- `temporarily_unavailable`: Service temporarily unavailable
 
 ### Token Endpoint Errors
 - `invalid_request`: Missing or malformed parameters
@@ -266,32 +266,34 @@ type AuthCode struct {
 ## Configuration
 
 ### Environment Variables
-- `ASTEROID_ISSUER`: OIDC issuer URL
-- `ASTEROID_PORT`: Server port (default: 8880)
-- `ASTEROID_STORAGE`: Storage backend (memory/redis)
+- `OIDC_ISSUER`: OIDC issuer URL (default: `http://localhost:8880`)
+
+**Redis Configuration** (when using Redis backend):
+- `REDIS_ADDR`: Redis server address (default: `localhost:6379`)
+- `REDIS_PASSWORD`: Redis password (optional)
+- `REDIS_DB`: Redis database number (default: `0`)
 
 ### Data Loading
 - **Clients**: `data/clients.yaml`
 - **Users**: `data/users.yaml`
-- **Keys**: `keys/private.pem`
+- **Keys**: Automatically generated in `keys/` directory
 
 ### Key Management
-- **Algorithm**: RSA 2048-bit minimum
+- **Algorithm**: ECDSA P-256 for ES256 signatures
 - **Format**: PEM encoded private key
-- **Rotation**: Manual process (automatic rotation planned)
+- **Generation**: Automatic key generation at startup
+- **Rotation**: Automatic rotation with configurable intervals
 
 ## Limitations
 
 ### Current Limitations
 - User authentication is simplified (fixed to pre-configured users)
-- Single RSA key (no key rotation)
 - Limited scope support (only "openid")
 - No UserInfo endpoint
 - No dynamic client registration
 
 ### Production Considerations
 - Implement proper user authentication
-- Add key rotation mechanism
 - Configure TLS/SSL termination
 - Set up monitoring and logging
 - Implement rate limiting
@@ -302,7 +304,6 @@ type AuthCode struct {
 
 ### Planned Features
 - Additional client authentication methods (client_secret_jwt)
-- Key rotation with graceful transition
 - Extended scope support (profile, email, address, phone)
 - Token introspection and revocation endpoints
 - Administrative APIs for client/user management
