@@ -54,7 +54,3 @@ Asteroid's performance comes from its modernized architecture:
 Asteroid delivers consistently low-latency OIDC responses on commodity hardware. The small, memory-resident design makes performance predictable and stable even under sustained load.
 
 With the switch to ECDSA-based signing, Asteroid now delivers sub-millisecond OIDC operations — consistently, predictably, and with the simplicity that Go brings to the metal.
-
-## Appendix (Environment Notes)
-Benchmarks were measured on a native Gentoo Linux 6.12.21 system (glibc 2.41-r5) using an optimized Go 1.24.6 toolchain.
-Environment details are included for reproducibility, as libc and compiler versions can influence low-latency workloads.

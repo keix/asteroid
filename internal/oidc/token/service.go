@@ -363,11 +363,11 @@ func (s *Service) generateIDToken(userID, clientID, nonce string, now time.Time)
 
 	// Create claims following OIDC Core validation order
 	claims := jwt.MapClaims{
-		"iss": s.Issuer,                         // Step 1: Issuer validation by clients
-		"sub": userID,                           // Subject identifier
-		"aud": clientID,                         // Step 2: Audience validation by clients
-		"exp": now.Add(15 * time.Minute).Unix(), // Step 3: Expiration validation
-		"iat": now.Unix(),                       // Issued at time
+		"iss": s.Issuer,                      // Step 1: Issuer validation by clients
+		"sub": userID,                        // Subject identifier
+		"aud": clientID,                      // Step 2: Audience validation by clients
+		"exp": now.Add(1 * time.Hour).Unix(), // Step 3: Expiration validation
+		"iat": now.Unix(),                    // Issued at time
 	}
 
 	// Add nonce if provided
