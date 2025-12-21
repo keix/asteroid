@@ -145,7 +145,7 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
 ### ID Token
 - **Format**: JWT (JSON Web Token)
 - **Algorithm**: ES256
-- **Lifetime**: 15 minutes
+- **Lifetime**: 1 hour
 - **Claims**: Standard OIDC claims
 
 **ID Token Claims**:
@@ -208,40 +208,70 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
 
 ### Data Models
 
-**Client Entity**:
+#### File-Based Models
+Loaded from YAML files at startup and cached in memory.
+
+**Client Entity** (`data/clients.yaml`):
 ```go
 type Client struct {
-    ID                      string   `json:"id"`
-    Secret                  string   `json:"secret"`
-    RedirectURIs            []string `json:"redirect_uris"`
-    Name                    string   `json:"name"`
-    TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
-    ClientType              string   `json:"client_type"` // "confidential" or "public"
+    ID                      string   `yaml:"id"`
+    Secret                  string   `yaml:"secret"`
+    RedirectURIs            []string `yaml:"redirect_uris"`
+    Name                    string   `yaml:"name"`
+    TokenEndpointAuthMethod string   `yaml:"token_endpoint_auth_method"`
+    ClientType              string   `yaml:"client_type"` // "confidential" or "public"
 }
 ```
 
-**User Entity**:
+**User Entity** (`data/users.yaml`):
 ```go
 type YAMLUser struct {
-    Sub    string                 `yaml:"sub"`
-    Email  string                 `yaml:"email"`
-    Claims map[string]interface{} `yaml:"claims"`
+    ID           string         `yaml:"id"`
+    Email        string         `yaml:"email"`
+    PasswordHash string         `yaml:"password_hash"`
+    CreatedAt    string         `yaml:"created_at"`
+    Claims       map[string]any `yaml:"claims,omitempty"` // Additional OIDC claims
 }
 ```
+
+#### Persistent Models
+Stored in configured backend (memory or Redis) with automatic expiration.
 
 **Authorization Code Entity**:
 ```go
 type AuthCode struct {
-    Code                 string    `json:"code"`
-    ClientID             string    `json:"client_id"`
-    UserID               string    `json:"user_id"`
-    RedirectURI          string    `json:"redirect_uri"`
-    Scope                string    `json:"scope"`
-    State                string    `json:"state"`
-    Nonce                string    `json:"nonce"`
-    CodeChallenge        string    `json:"code_challenge"`
-    CodeChallengeMethod  string    `json:"code_challenge_method"`
-    ExpiresAt            time.Time `json:"expires_at"`
+    Code                string    `json:"code"`
+    ClientID            string    `json:"client_id"`
+    UserID              string    `json:"user_id"`
+    RedirectURI         string    `json:"redirect_uri"`
+    CodeChallenge       string    `json:"code_challenge"`
+    CodeChallengeMethod string    `json:"code_challenge_method"`
+    Scope               string    `json:"scope"`
+    State               string    `json:"state"`
+    Nonce               string    `json:"nonce"`
+    ExpiresAt           time.Time `json:"expires_at"`
+}
+```
+
+**Access Token Entity**:
+```go
+type AccessToken struct {
+    Token     string    `json:"token"`
+    ClientID  string    `json:"client_id"`
+    UserID    string    `json:"user_id"`
+    Scope     string    `json:"scope"`
+    ExpiresAt time.Time `json:"expires_at"`
+}
+```
+
+**Refresh Token Entity**:
+```go
+type RefreshToken struct {
+    Token     string    `json:"token"`
+    ClientID  string    `json:"client_id"`
+    UserID    string    `json:"user_id"`
+    Scope     string    `json:"scope"`
+    ExpiresAt time.Time `json:"expires_at"`
 }
 ```
 
@@ -276,7 +306,6 @@ type AuthCode struct {
 ### Data Loading
 - **Clients**: `data/clients.yaml`
 - **Users**: `data/users.yaml`
-- **Keys**: Automatically generated in `keys/` directory
 
 ### Key Management
 - **Algorithm**: ECDSA P-256 for ES256 signatures

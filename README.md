@@ -1,5 +1,5 @@
 # Asteroid
-An OpenID Connect Core 1.0–compatible provider written in Go, focused on authorization and token issuance.
+An OpenID Connect Core 1.0 provider written in Go, focused on authorization and token issuance.
 
 ## Why Asteroid?
 Asteroid is composed of small, independent components that work together loosely — much like a cluster of asteroids forming a stable system.
@@ -122,7 +122,7 @@ In development environments, generated keys are persisted to local files for con
 In addition, Asteroid should not be exposed directly to the public internet.  
 We recommend placing it behind a reverse proxy:
 
-- **nginx (via unix domain socket)**  
+- **Nginx (via unix domain socket)**  
   Provides optimal isolation, no TCP surface, and keeps TLS termination outside the Asteroid process.
 
 - **AWS ALB (directly in front of Asteroid)**  
@@ -132,34 +132,23 @@ By delegating TLS termination, rate limiting, and access policies to the upstrea
 
 Asteroid speaks HTTP internally. In production, clients must access the issuer over HTTPS, with TLS termination
 handled entirely by the upstream proxy (nginx, Envoy, ALB, etc.). This keeps Asteroid transport-layer agnostic while remaining compliant with OIDC.
-
 ## Recommended Deployment
+
 A well-engineered Linux or BSD system remains one of the most robust and predictable foundations available.
 
-Full control over the kernel, filesystem, resource limits, and networking policies provides a level of transparency that containerized or serverless runtimes cannot match.
+Running Asteroid directly as a native binary on a POSIX system provides full control over the kernel, filesystem, resource limits, and networking behavior — a level of transparency that containerized or serverless runtimes cannot offer.
 
-A typical production topology is:
+In production, Asteroid is designed to run behind a reverse proxy such as Nginx, ALB, or Envoy, with TLS termination handled upstream. Communication between the proxy and Asteroid is typically done via a UNIX domain socket for minimal overhead and clear responsibility boundaries.
 
-```
-Internet / Clients
-↓
-TLS termination (NGINX / ALB / Envoy)
-↓
-Asteroid (listening on a UNIX domain socket)
-↓
-Redis (volatile session/cache storage)
-```
+This approach offers:
 
-This model provides:
+- strict separation of concerns (TLS, routing, and access control handled outside Asteroid)
+- predictable performance without container abstraction
+- minimal operational complexity
+- suitability for EC2, on-premise Linux, or any POSIX-compliant system
 
-- clear separation of responsibilities (TLS, HTTP, routing handled by the proxy)
-- predictable performance by running Asteroid as a native Linux binary
-- minimal moving parts and no container overhead
-- a stable environment suitable for EC2, on-premise Linux, or any POSIX system
-
-Docker is included only as an example for local development. For production systems, 
-deploying Asteroid directly on Linux (e.g., Amazon EC2)
-with a reverse proxy and a UNIX domain socket is the recommended configuration.
+Docker support is provided only for local development and testing.  
+For production deployments, running Asteroid directly on Linux with a reverse proxy is the recommended configuration.
 
 ## License
 Copyright KEI SAWAMURA 2025 (a.k.a keix)  

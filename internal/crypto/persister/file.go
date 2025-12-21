@@ -143,7 +143,7 @@ func (f *File) loadKeyPairFromPEM(filename string) (*crypto.KeyPair, error) {
 }
 
 // loadPrivateKeyPEM loads a private key from PEM file
-func (f *File) loadPrivateKeyPEM(path string) (interface{}, interface{}, error) {
+func (f *File) loadPrivateKeyPEM(path string) (any, any, error) {
 	pemData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, err

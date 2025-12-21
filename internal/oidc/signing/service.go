@@ -42,23 +42,18 @@ func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTT
 		done:      make(chan struct{}),
 	}
 
-	// Load existing keys from persistence layer
-	if err := manager.LoadExistingKeys(); err != nil {
-		fmt.Printf("Warning: failed to load existing keys: %v\n", err)
-	}
+	// Skip loading existing keys to avoid key accumulation issues
+	// if err := manager.LoadExistingKeys(); err != nil {
+	//	fmt.Printf("Warning: failed to load existing keys: %v\n", err)
+	// }
 
-	// Generate initial keys only if no existing keys for algorithm
+	// Always generate fresh keys on startup
 	for _, algorithm := range algorithms {
-		if existingKey, _ := manager.GetActiveKey(algorithm); existingKey != nil {
-			fmt.Printf("Found existing key for algorithm: %s\n", algorithm)
-			continue // Skip generation if key exists
-		}
-
 		if _, err := rotator.EnsureActiveKey(algorithm); err != nil {
 			fmt.Printf("Failed to generate initial key for %s: %v\n", algorithm, err)
 			// Continue with other algorithms
 		} else {
-			fmt.Printf("Generated initial key for algorithm: %s\n", algorithm)
+			fmt.Printf("Generated fresh key for algorithm: %s\n", algorithm)
 		}
 	}
 
@@ -120,7 +115,7 @@ func (s *Service) ListKeys() []KeyInfo {
 func (s *Service) cleanupLoop() {
 	defer close(s.done)
 
-	ticker := time.NewTicker(30 * time.Second) // Cleanup every 30 seconds (testing)
+	ticker := time.NewTicker(1 * time.Minute) // Cleanup every minute
 	defer ticker.Stop()
 
 	for {
@@ -130,8 +125,7 @@ func (s *Service) cleanupLoop() {
 		case <-ticker.C:
 			expiredKeys := s.rotator.CleanupExpiredKeys()
 			if len(expiredKeys) > 0 {
-				// Log cleanup action (in production, use proper logging)
-				// fmt.Printf("Cleaned up %d expired keys: %v\n", len(expiredKeys), expiredKeys)
+				fmt.Printf("Cleaned up %d expired keys: %v\n", len(expiredKeys), expiredKeys)
 			}
 		}
 	}
