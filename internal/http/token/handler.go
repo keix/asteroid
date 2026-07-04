@@ -53,6 +53,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		ClientSecret: httpReq.ClientSecret,
 		RefreshToken: httpReq.RefreshToken,
 		Scope:        httpReq.Scope,
+		Audience:     httpReq.Audience,
 		CodeVerifier: httpReq.CodeVerifier,
 		AuthMethod:   httpReq.AuthMethod,
 	}

@@ -11,5 +11,6 @@ const (
 	ErrorUnauthorizedClient
 	ErrorUnsupportedGrantType
 	ErrorInvalidScope
+	ErrorInvalidTarget // RFC 8707 — requested audience not in client's allowlist
 	ErrorServerError
 )

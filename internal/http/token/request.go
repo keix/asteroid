@@ -11,6 +11,7 @@ type Request struct {
 	ClientSecret string `json:"client_secret" form:"client_secret"`
 	RefreshToken string `json:"refresh_token" form:"refresh_token"`
 	Scope        string `json:"scope" form:"scope"`
+	Audience     string `json:"audience" form:"audience"`
 	CodeVerifier string `json:"code_verifier" form:"code_verifier"`
 	AuthMethod   string // client_secret_post or client_secret_basic
 }
@@ -38,6 +39,9 @@ func NewRequest(c *gin.Context) *Request {
 	}
 	if req.Scope == "" {
 		req.Scope = c.PostForm("scope")
+	}
+	if req.Audience == "" {
+		req.Audience = c.PostForm("audience")
 	}
 	if req.CodeVerifier == "" {
 		req.CodeVerifier = c.PostForm("code_verifier")
