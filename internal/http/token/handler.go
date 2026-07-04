@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/oidc/token"
 	"asteroid/internal/store"
@@ -26,7 +27,16 @@ func NewHandler(
 	signingService *signing.Service,
 ) *Handler {
 	return &Handler{
-		service: token.NewService(authCodeStore, tokenStore, clientStore, signingService, userinfoProvider, issuer),
+		service: token.NewService(
+			authCodeStore,
+			tokenStore,
+			clientStore,
+			signingService,
+			userinfoProvider,
+			issuer,
+			clock.RealClock{},
+			clock.UUIDGenerator{},
+		),
 	}
 }
 

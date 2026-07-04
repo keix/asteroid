@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/crypto"
 )
 
@@ -14,6 +15,7 @@ type Scheduler struct {
 	manager          *Manager
 	rotationInterval time.Duration
 	algorithms       []string
+	clock            clock.Clock
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -21,12 +23,13 @@ type Scheduler struct {
 }
 
 // NewScheduler creates a new rotation scheduler
-func NewScheduler(rotator *Rotator, manager *Manager, rotationInterval time.Duration, algorithms []string) *Scheduler {
+func NewScheduler(rotator *Rotator, manager *Manager, rotationInterval time.Duration, algorithms []string, clk clock.Clock) *Scheduler {
 	return &Scheduler{
 		rotator:          rotator,
 		manager:          manager,
 		rotationInterval: rotationInterval,
 		algorithms:       algorithms,
+		clock:            clk,
 	}
 }
 
@@ -59,15 +62,14 @@ func (s *Scheduler) rotationLoop() {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			s.checkAndRotateKeys()
+			s.checkAndRotateKeys(s.clock.Now())
 		}
 	}
 }
 
-// checkAndRotateKeys checks if keys need rotation and performs it
-func (s *Scheduler) checkAndRotateKeys() {
-	now := time.Now()
-
+// checkAndRotateKeys checks if keys need rotation and performs it.
+// Time-injected decision; called with a controlled `now` from tests.
+func (s *Scheduler) checkAndRotateKeys(now time.Time) {
 	for _, algorithm := range s.algorithms {
 		activeKey, err := s.manager.GetActiveKey(algorithm)
 		if err != nil {

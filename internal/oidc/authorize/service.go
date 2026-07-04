@@ -6,8 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/google/uuid"
-
+	"asteroid/internal/clock"
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
 	"asteroid/internal/userinfo"
@@ -19,6 +18,8 @@ type Service struct {
 	UserinfoProvider userinfo.Provider
 	AuthCodeStore    store.AuthCodeStore
 	NonceStore       store.NonceStore
+	Clock            clock.Clock
+	Generator        clock.Generator
 }
 
 // NewService creates a new authorization service
@@ -27,12 +28,16 @@ func NewService(
 	userinfoProvider userinfo.Provider,
 	authCodeStore store.AuthCodeStore,
 	nonceStore store.NonceStore,
+	clk clock.Clock,
+	gen clock.Generator,
 ) *Service {
 	return &Service{
 		ClientStore:      clientStore,
 		UserinfoProvider: userinfoProvider,
 		AuthCodeStore:    authCodeStore,
 		NonceStore:       nonceStore,
+		Clock:            clk,
+		Generator:        gen,
 	}
 }
 
@@ -118,8 +123,8 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 	}
 
 	// Generate authorization code
-	code := uuid.NewString()
-	now := time.Now()
+	code := s.Generator.NewCode()
+	now := s.Clock.Now()
 	authCode := &entity.AuthCode{
 		Code:                code,
 		ClientID:            client.ID,

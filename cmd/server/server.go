@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/config"
 	httpx "asteroid/internal/http"
 	"asteroid/internal/loader/data"
@@ -35,7 +36,9 @@ func Assemble() *Asteroid {
 
 	cfg := config.Load()
 
-	stores, err := driver.NewStores(&cfg)
+	clk := clock.RealClock{}
+
+	stores, err := driver.NewStores(&cfg, clk)
 	if err != nil {
 		log.Fatalf("failed to initialize stores: %v", err)
 	}
@@ -54,6 +57,7 @@ func Assemble() *Asteroid {
 		"./keys",
 		24*time.Hour, // Key Retention: 1 days
 		24*time.Hour, // Key Rotation: 1 day
+		clk,
 	)
 
 	r := gin.New()

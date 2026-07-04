@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
 )
 
@@ -12,12 +13,14 @@ type TokenStore struct {
 	accessTokens  map[string]*entity.AccessToken
 	refreshTokens map[string]*entity.RefreshToken
 	mu            sync.RWMutex
+	clock         clock.Clock
 }
 
-func NewTokenStore(ctx context.Context) *TokenStore {
+func NewTokenStore(ctx context.Context, clk clock.Clock) *TokenStore {
 	ts := &TokenStore{
 		accessTokens:  make(map[string]*entity.AccessToken),
 		refreshTokens: make(map[string]*entity.RefreshToken),
+		clock:         clk,
 	}
 
 	// Start cleanup goroutine for expired tokens
@@ -49,8 +52,7 @@ func (ts *TokenStore) GetRefreshToken(ctx context.Context, token string) (*entit
 		return nil, entity.ErrRefreshTokenNotFound
 	}
 
-	// Check if expired
-	if time.Now().After(refreshToken.ExpiresAt) {
+	if ts.clock.Now().After(refreshToken.ExpiresAt) {
 		return nil, entity.ErrRefreshTokenExpired
 	}
 
@@ -64,7 +66,8 @@ func (ts *TokenStore) DeleteRefreshToken(ctx context.Context, token string) erro
 	return nil
 }
 
-// cleanupExpiredTokens periodically removes expired tokens
+// cleanupExpiredTokens periodically removes expired tokens.
+// The ticker is real-time orchestration; the decision uses the injected clock.
 func (ts *TokenStore) cleanupExpiredTokens(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -72,15 +75,14 @@ func (ts *TokenStore) cleanupExpiredTokens(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			ts.deleteExpired()
+			ts.deleteExpired(ts.clock.Now())
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (ts *TokenStore) deleteExpired() {
-	now := time.Now()
+func (ts *TokenStore) deleteExpired(now time.Time) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 

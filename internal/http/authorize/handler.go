@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/oidc/authorize"
 	"asteroid/internal/store"
 	"asteroid/internal/userinfo"
@@ -23,7 +24,14 @@ func NewHandler(
 	userinfoProvider userinfo.Provider,
 ) *Handler {
 	return &Handler{
-		service: authorize.NewService(clientStore, userinfoProvider, authCodeStore, nonceStore),
+		service: authorize.NewService(
+			clientStore,
+			userinfoProvider,
+			authCodeStore,
+			nonceStore,
+			clock.RealClock{},
+			clock.UUIDGenerator{},
+		),
 	}
 }
 
