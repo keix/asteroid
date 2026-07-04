@@ -5,20 +5,23 @@ import (
 	"sync"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
 )
 
 type AuthCodeStore struct {
 	mu    sync.RWMutex
 	codes map[string]*entity.AuthCode
+	clock clock.Clock
 }
 
-func NewAuthCodeStore() *AuthCodeStore {
+func NewAuthCodeStore(ctx context.Context, clk clock.Clock) *AuthCodeStore {
 	store := &AuthCodeStore{
 		codes: make(map[string]*entity.AuthCode),
+		clock: clk,
 	}
 
-	go store.cleanup()
+	go store.cleanupLoop(ctx)
 	return store
 }
 
@@ -39,7 +42,7 @@ func (s *AuthCodeStore) GetAuthCode(ctx context.Context, code string) (*entity.A
 		return nil, entity.ErrAuthCodeNotFound
 	}
 
-	if time.Now().After(authCode.ExpiresAt) {
+	if s.clock.Now().After(authCode.ExpiresAt) {
 		return nil, entity.ErrAuthCodeNotFound
 	}
 
@@ -54,18 +57,28 @@ func (s *AuthCodeStore) DeleteAuthCode(ctx context.Context, code string) error {
 	return nil
 }
 
-func (s *AuthCodeStore) cleanup() {
+// cleanupLoop is real-time orchestration; the decision uses the injected clock.
+func (s *AuthCodeStore) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		s.mu.Lock()
-		now := time.Now()
-		for code, authCode := range s.codes {
-			if now.After(authCode.ExpiresAt) {
-				delete(s.codes, code)
-			}
+	for {
+		select {
+		case <-ticker.C:
+			s.deleteExpired(s.clock.Now())
+		case <-ctx.Done():
+			return
 		}
-		s.mu.Unlock()
+	}
+}
+
+func (s *AuthCodeStore) deleteExpired(now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for code, authCode := range s.codes {
+		if now.After(authCode.ExpiresAt) {
+			delete(s.codes, code)
+		}
 	}
 }

@@ -8,7 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
+)
+
+var (
+	testFixedTime  = time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	testFixedToken = "test-token-12345"
 )
 
 func TestAuthorizationCode_OneTimeUse(t *testing.T) {
@@ -72,16 +78,26 @@ func TestUserDeletion_StopsTokenIssuance(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{
 		authCodes: map[string]*entity.AuthCode{
 			"valid-code": {
-				Code:      "valid-code",
-				ClientID:  "test-client",
-				UserID:    "deleted-user", // User was deleted
-				ExpiresAt: time.Now().Add(10 * time.Minute),
+				Code:        "valid-code",
+				ClientID:    "test-client",
+				UserID:      "deleted-user", // User was deleted
+				RedirectURI: "http://localhost:3000/callback",
+				ExpiresAt:   testFixedTime.Add(10 * time.Minute),
 			},
 		},
 	}
 	tokenStore := &MockTokenStore{}
 
-	service := NewService(authCodeStore, tokenStore, clientStore, nil, userinfoProvider, "http://localhost")
+	service := NewService(
+		authCodeStore,
+		tokenStore,
+		clientStore,
+		nil,
+		userinfoProvider,
+		"http://localhost",
+		clock.FixedClock{Time: testFixedTime},
+		&clock.FixedGenerator{Token: testFixedToken},
+	)
 
 	t.Run("should_fail_with_invalid_grant_when_user_deleted", func(t *testing.T) {
 		req := &TokenRequest{

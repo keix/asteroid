@@ -28,7 +28,7 @@ func TestAuthorizeEndpoint_PublicClient_PKCE(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	t.Run("should_fail_when_PKCE_required_but_missing_code_challenge", func(t *testing.T) {
 		req := &AuthorizeRequest{
@@ -108,7 +108,7 @@ func TestAuthorizeEndpoint_ConfidentialClient(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	t.Run("should_succeed_without_PKCE_for_confidential_client", func(t *testing.T) {
 		req := &AuthorizeRequest{

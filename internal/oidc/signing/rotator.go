@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/crypto"
 )
 
@@ -15,13 +16,15 @@ import (
 type Rotator struct {
 	manager    *Manager
 	idTokenTTL time.Duration
+	clock      clock.Clock
 }
 
 // NewRotator creates a new key rotator
-func NewRotator(manager *Manager, idTokenTTL time.Duration) *Rotator {
+func NewRotator(manager *Manager, idTokenTTL time.Duration, clk clock.Clock) *Rotator {
 	return &Rotator{
 		manager:    manager,
 		idTokenTTL: idTokenTTL,
+		clock:      clk,
 	}
 }
 
@@ -49,7 +52,7 @@ func (r *Rotator) RotateKey(algorithm string) (*crypto.KeyPair, error) {
 
 	// Step 4: Set expiration on old active key (ID token TTL alignment)
 	if oldActiveKey != nil {
-		expiresAt := time.Now().Add(r.idTokenTTL)
+		expiresAt := r.clock.Now().Add(r.idTokenTTL)
 		if err := r.manager.SetKeyExpiration(oldActiveKey.KeyID, expiresAt); err != nil {
 			// Log warning but don't fail rotation
 			fmt.Printf("Warning: failed to set expiration on old key %s: %v\n", oldActiveKey.KeyID, err)
@@ -82,7 +85,13 @@ func (r *Rotator) EnsureActiveKey(algorithm string) (*crypto.KeyPair, error) {
 
 // CleanupExpiredKeys removes keys that have passed their expiration time
 func (r *Rotator) CleanupExpiredKeys() []string {
-	return r.manager.ExpireKeysByTime(time.Now())
+	return r.cleanupExpired(r.clock.Now())
+}
+
+// cleanupExpired is the time-injected decision used by both CleanupExpiredKeys
+// and the Service's background loop. Pure: takes now, returns removed key IDs.
+func (r *Rotator) cleanupExpired(now time.Time) []string {
+	return r.manager.ExpireKeysByTime(now)
 }
 
 // GetRotationStatus returns status information for rotation operations

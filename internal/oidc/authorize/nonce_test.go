@@ -27,7 +27,7 @@ func TestNonceHandling(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	t.Run("should_return_nonce", func(t *testing.T) {
 		req := &AuthorizeRequest{

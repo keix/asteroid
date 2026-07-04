@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/crypto"
 	"asteroid/internal/crypto/persister"
 )
@@ -23,15 +24,15 @@ type Service struct {
 }
 
 // NewService creates a new signing service with background cleanup and rotation
-func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTTL time.Duration, rotationInterval time.Duration) *Service {
+func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTTL time.Duration, rotationInterval time.Duration, clk clock.Clock) *Service {
 	childCtx, cancel := context.WithCancel(ctx)
 
 	manager := New(keyPersister)
-	rotator := NewRotator(manager, idTokenTTL)
+	rotator := NewRotator(manager, idTokenTTL, clk)
 
 	// Create scheduler for automatic rotation (default algorithm: ES256)
 	algorithms := []string{"ES256"} // Default algorithm - idempotent key ID
-	scheduler := NewScheduler(rotator, manager, rotationInterval, algorithms)
+	scheduler := NewScheduler(rotator, manager, rotationInterval, algorithms, clk)
 
 	service := &Service{
 		manager:   manager,
@@ -132,9 +133,9 @@ func (s *Service) cleanupLoop() {
 }
 
 // NewFileService creates a signing service with file persistence (development)
-func NewFileService(ctx context.Context, keyDir string, idTokenTTL time.Duration, rotationInterval time.Duration) *Service {
+func NewFileService(ctx context.Context, keyDir string, idTokenTTL time.Duration, rotationInterval time.Duration, clk clock.Clock) *Service {
 	filePersister := persister.New(keyDir)
-	return NewService(ctx, filePersister, idTokenTTL, rotationInterval)
+	return NewService(ctx, filePersister, idTokenTTL, rotationInterval, clk)
 }
 
 // Example for production KMS integration:

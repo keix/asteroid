@@ -3,10 +3,12 @@ package authorize
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
 	"asteroid/internal/userinfo"
 )
@@ -83,6 +85,28 @@ func (m *MockNonceStore) MarkNonceSeen(ctx context.Context, nonce, clientID stri
 	return nil
 }
 
+// Test helpers for deterministic testing
+var (
+	fixedTime = time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	fixedCode = "test-auth-code-12345"
+)
+
+func newTestService(
+	clientStore *MockClientStore,
+	userinfoProvider *MockUserinfoProvider,
+	authCodeStore *MockAuthCodeStore,
+	nonceStore *MockNonceStore,
+) *Service {
+	return NewService(
+		clientStore,
+		userinfoProvider,
+		authCodeStore,
+		nonceStore,
+		clock.FixedClock{Time: fixedTime},
+		&clock.FixedGenerator{Code: fixedCode},
+	)
+}
+
 func TestAuthorize_NoAuthenticationHeader_Returns401(t *testing.T) {
 	clientStore := &MockClientStore{
 		clients: map[string]*entity.Client{
@@ -96,7 +120,7 @@ func TestAuthorize_NoAuthenticationHeader_Returns401(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	req := &AuthorizeRequest{
 		ClientID:     "test-client",
@@ -120,7 +144,7 @@ func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	tests := []struct {
 		name string
@@ -186,7 +210,7 @@ func TestAuthorize_RedirectURIMismatch_ReturnsError(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	req := &AuthorizeRequest{
 		ClientID:     "test-client",
@@ -221,7 +245,7 @@ func TestAuthorize_ValidRequest_ReturnsCode(t *testing.T) {
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
 
-	service := NewService(clientStore, userinfoProvider, authCodeStore, nonceStore)
+	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	req := &AuthorizeRequest{
 		ClientID:     "test-client",
@@ -237,6 +261,11 @@ func TestAuthorize_ValidRequest_ReturnsCode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ErrorNone, errType)
 	assert.NotNil(t, result)
-	assert.Contains(t, result.RedirectURL, "code=")
-	assert.Contains(t, result.RedirectURL, "state=test-state")
+	// Deterministic: code is now predictable
+	assert.Equal(t, "https://example.com/callback?code="+fixedCode+"&state=test-state", result.RedirectURL)
+
+	// Verify saved auth code has correct expiration (5 minutes from fixed time)
+	savedCode := authCodeStore.authCodes[fixedCode]
+	require.NotNil(t, savedCode)
+	assert.Equal(t, fixedTime.Add(5*time.Minute), savedCode.ExpiresAt)
 }

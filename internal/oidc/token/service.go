@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/store"
 	"asteroid/internal/store/entity"
@@ -24,6 +24,8 @@ type Service struct {
 	SigningService   *signing.Service
 	UserinfoProvider userinfo.Provider
 	Issuer           string
+	Clock            clock.Clock
+	Generator        clock.Generator
 }
 
 // NewService creates a new token service
@@ -34,6 +36,8 @@ func NewService(
 	signingService *signing.Service,
 	userinfoProvider userinfo.Provider,
 	issuer string,
+	clk clock.Clock,
+	gen clock.Generator,
 ) *Service {
 	return &Service{
 		AuthCodeStore:    authCodeStore,
@@ -42,6 +46,8 @@ func NewService(
 		SigningService:   signingService,
 		UserinfoProvider: userinfoProvider,
 		Issuer:           issuer,
+		Clock:            clk,
+		Generator:        gen,
 	}
 }
 
@@ -123,7 +129,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		return nil, ErrorInvalidGrant, nil
 	}
 	// 3c. Temporal validity (equivalent to expiration validation)
-	now := time.Now()
+	now := s.Clock.Now()
 	if now.After(authCode.ExpiresAt) {
 		return nil, ErrorInvalidGrant, nil
 	}
@@ -169,8 +175,8 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 	}
 
 	// Step 5: Token Generation
-	accessToken := uuid.NewString()
-	refreshToken := uuid.NewString()
+	accessToken := s.Generator.NewToken()
+	refreshToken := s.Generator.NewToken()
 	// Use consistent timestamp throughout the request
 
 	accessTokenEntity := &entity.AccessToken{
@@ -268,9 +274,9 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	}
 
 	// Generate new tokens
-	accessToken := uuid.NewString()
-	refreshToken := uuid.NewString()
-	now := time.Now()
+	accessToken := s.Generator.NewToken()
+	refreshToken := s.Generator.NewToken()
+	now := s.Clock.Now()
 
 	accessTokenEntity := &entity.AccessToken{
 		Token:     accessToken,

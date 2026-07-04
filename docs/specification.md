@@ -8,8 +8,9 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
 
 ### Core Standards
 - OpenID Connect Core 1.0
-- OAuth 2.0 Authorization Framework (RFC 6749)
+- OAuth 2.0 Authorization Framework (RFC 6749) — Authorization Code, Refresh Token, Client Credentials grants
 - JSON Web Token (RFC 7519)
+- JSON Web Token Profile for OAuth 2.0 Access Tokens (RFC 9068) — JWT access token claims for client_credentials
 - JSON Web Key (RFC 7517)
 - JSON Web Signature (RFC 7515)
 
@@ -21,7 +22,22 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
 ### Additional Standards
 - OAuth 2.0 Token Introspection (RFC 7662) - Future
 - OAuth 2.0 Token Revocation (RFC 7009) - Future
+- Resource Indicators for OAuth 2.0 (RFC 8707) - Future (see `audience` parameter below)
 - OpenID Connect Discovery 1.0
+
+## Grant Types
+
+Asteroid supports three OAuth 2.0 grant types, each with a distinct intended use case and token shape.
+
+| Grant Type | Intended Use | Access Token | Refresh Token | ID Token |
+| ---------- | ------------ | ------------ | ------------- | -------- |
+| `authorization_code` | User-facing sign-in (interactive) | Opaque UUID | Yes | If `openid` scope |
+| `refresh_token` | Session extension for user flows | Opaque UUID | Rotated | If `openid` scope |
+| `client_credentials` | Machine-to-machine (no user context) | JWT (ES256) | No | No |
+
+Client credentials issue **JWT access tokens** so that resource servers can verify tokens statelessly using the JWKS endpoint, without a network round trip to Asteroid on every request. User-facing flows continue to issue opaque tokens so revocation stays instant via the token store.
+
+The set of grant types a given client may use is controlled by the `allowed_grant_types` field on the Client entity. Empty means the pre-client-credentials default of `["authorization_code", "refresh_token"]` for backward compatibility; a client wishing to use client_credentials must list it explicitly.
 
 ## Endpoints
 
@@ -39,13 +55,15 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
   "token_endpoint": "https://auth.example.com/token",
   "jwks_uri": "https://auth.example.com/jwks.json",
   "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code", "refresh_token", "client_credentials"],
   "subject_types_supported": ["public"],
   "id_token_signing_alg_values_supported": ["ES256"],
+  "access_token_signing_alg_values_supported": ["ES256"],
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
   "response_modes_supported": ["query"],
   "code_challenge_methods_supported": ["S256"],
-  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "nonce"]
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "nonce", "scope", "client_id", "token_use", "jti"]
 }
 ```
 
@@ -93,7 +111,16 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
 - `client_id`: Client identifier
 - `client_secret`: Client secret
 
-**Success Response**:
+**Client Credentials Grant Parameters** (RFC 6749 §4.4):
+- `grant_type`: Must be "client_credentials"
+- `client_id`: Client identifier
+- `client_secret`: Client secret (public clients are rejected — client_credentials requires a confidential client)
+- `scope`: Space-separated requested scopes; each scope must be present in the client's `allowed_scopes`
+- `audience`: Target resource server identifier; must be present in the client's `allowed_audiences`. Optional if the client has exactly one entry in `allowed_audiences` (used as default); required if the client has multiple
+
+The client's `allowed_grant_types` must include `"client_credentials"` or the request is rejected with `unauthorized_client`. Client authentication follows the same rules as other grants (`client_secret_post` or `client_secret_basic`).
+
+**Success Response (authorization_code / refresh_token)**:
 ```json
 {
   "access_token": "uuid-v4-token",
@@ -104,6 +131,18 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
   "scope": "openid"
 }
 ```
+
+**Success Response (client_credentials)**:
+```json
+{
+  "access_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "api:read api:write"
+}
+```
+
+No `refresh_token` is issued for the client credentials grant (per RFC 6749 §4.4.3 — the client can simply request a new access token). No `id_token` is issued because no user context exists.
 
 ### JWKS Endpoint
 - **Path**: `/jwks.json`
@@ -130,11 +169,42 @@ Asteroid implements the minimal subset of OpenID Connect Core 1.0 with security 
 
 ## Token Formats
 
-### Access Token
-- **Format**: UUID v4
+### Access Token (Authorization Code / Refresh Token flows)
+- **Format**: UUID v4 (opaque)
 - **Lifetime**: 1 hour
-- **Storage**: Stored in backend with metadata
+- **Storage**: Stored in backend with metadata (client_id, user_id, scope, expires_at)
 - **Scope**: Contains granted scopes
+- **Validation**: Consumers cannot validate directly; introspection endpoint planned (RFC 7662)
+
+### Access Token (Client Credentials flow)
+- **Format**: JWT (JSON Web Token), RFC 9068 profile
+- **Algorithm**: ES256, signed with the same active key as ID Tokens and published via `/jwks.json`
+- **Lifetime**: 1 hour
+- **Storage**: Stateless — not persisted server-side; revocation waits for `exp`
+- **Validation**: Resource server verifies the JWT signature against the JWKS endpoint locally, with no round trip to Asteroid on the hot path
+
+**Access Token Claims (client_credentials)**:
+```json
+{
+  "iss": "https://auth.example.com",
+  "sub": "client-id",
+  "aud": "resource-server-id",
+  "exp": 1234567890,
+  "iat": 1234567890,
+  "scope": "api:read api:write",
+  "client_id": "client-id",
+  "token_use": "access",
+  "jti": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+- `sub` — equal to `client_id` when there is no user (RFC 9068 §2.2)
+- `aud` — the target resource server; validated at issuance against `allowed_audiences` and again at consumption by the resource server
+- `scope` — space-separated list of granted scopes (subset of the client's `allowed_scopes`)
+- `token_use` — always `"access"`; distinguishes access tokens from ID tokens when both are signed with the same key
+- `jti` — unique token identifier; reserved for future revocation via a `jti` denylist
+
+The same signing key (ES256, published via JWKS) is used for both ID Tokens and JWT access tokens. Consumers distinguish them by `token_use` and by the presence of `nonce` (ID Token only).
 
 ### Refresh Token
 - **Format**: UUID v4
@@ -220,8 +290,20 @@ type Client struct {
     Name                    string   `yaml:"name"`
     TokenEndpointAuthMethod string   `yaml:"token_endpoint_auth_method"`
     ClientType              string   `yaml:"client_type"` // "confidential" or "public"
+
+    // Grant / scope / audience policy — enforced at the token endpoint
+    AllowedGrantTypes       []string `yaml:"allowed_grant_types"` // e.g. ["authorization_code", "refresh_token"] or ["client_credentials"]
+    AllowedScopes           []string `yaml:"allowed_scopes"`      // scope allowlist; requested scopes must be a subset
+    AllowedAudiences        []string `yaml:"allowed_audiences"`   // audience allowlist for client_credentials grant
 }
 ```
+
+**Policy field defaults (backward compatibility)**:
+- `AllowedGrantTypes` empty → `["authorization_code", "refresh_token"]` (pre-existing clients keep working unchanged)
+- `AllowedScopes` empty → `["openid"]` for `authorization_code` clients; empty means "no scopes granted" for `client_credentials` clients (which fails safely)
+- `AllowedAudiences` empty → allowed only for clients that do not use `client_credentials`; a `client_credentials` request against such a client is rejected with `invalid_request`
+
+The policy is checked at every token request. Requested `scope` and `audience` values that are not on the client's allowlist are rejected with `invalid_scope` or `invalid_target` respectively, before any token is minted.
 
 **User Entity** (`data/users.yaml`):
 ```go
@@ -286,12 +368,13 @@ type RefreshToken struct {
 - `server_error`: Internal server error
 
 ### Token Endpoint Errors
-- `invalid_request`: Missing or malformed parameters
-- `invalid_client`: Client authentication failed
+- `invalid_request`: Missing or malformed parameters (also: `client_credentials` without a resolvable audience)
+- `invalid_client`: Client authentication failed, or public client attempted `client_credentials`
 - `invalid_grant`: Authorization grant invalid
-- `unauthorized_client`: Client not authorized for grant type
-- `unsupported_grant_type`: Grant type not supported
-- `invalid_scope`: Requested scope invalid
+- `unauthorized_client`: Client not authorized for the requested grant type (grant not in the client's `allowed_grant_types`)
+- `unsupported_grant_type`: Grant type not supported by the server
+- `invalid_scope`: Requested scope invalid or not in the client's `allowed_scopes`
+- `invalid_target`: Requested audience not in the client's `allowed_audiences` (RFC 8707 error code, reused here)
 
 ## Configuration
 
@@ -317,9 +400,10 @@ type RefreshToken struct {
 
 ### Current Limitations
 - User authentication is simplified (fixed to pre-configured users)
-- Limited scope support (only "openid")
+- Limited built-in scopes (`openid`); custom scopes are configured per client via `allowed_scopes`
 - No UserInfo endpoint
 - No dynamic client registration
+- Client credentials JWT access tokens are stateless — revocation before `exp` is not supported (planned via `jti` denylist)
 
 ### Production Considerations
 - Implement proper user authentication
@@ -334,7 +418,9 @@ type RefreshToken struct {
 ### Planned Features
 - Additional client authentication methods (client_secret_jwt)
 - Extended scope support (profile, email, address, phone)
-- Token introspection and revocation endpoints
+- Token introspection and revocation endpoints (RFC 7662, RFC 7009)
+- `jti` denylist for JWT access token revocation
+- RFC 8707 `resource` parameter alignment (currently uses `audience`)
 - Administrative APIs for client/user management
 - Structured logging with correlation IDs
 - Metrics and health check endpoints

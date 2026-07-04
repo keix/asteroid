@@ -5,19 +5,22 @@ import (
 	"sync"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
 )
 
 type NonceStore struct {
 	seenNonces map[string]time.Time // key: "clientID:nonce", value: expiresAt
 	mu         sync.RWMutex
+	clock      clock.Clock
 }
 
-func NewNonceStore(ctx context.Context) *NonceStore {
+func NewNonceStore(ctx context.Context, clk clock.Clock) *NonceStore {
 	store := &NonceStore{
 		seenNonces: make(map[string]time.Time),
+		clock:      clk,
 	}
-	go store.cleanup(ctx)
+	go store.cleanupLoop(ctx)
 	return store
 }
 
@@ -26,7 +29,7 @@ func (s *NonceStore) MarkNonceSeen(ctx context.Context, nonce, clientID string) 
 	defer s.mu.Unlock()
 
 	key := clientID + ":" + nonce
-	now := time.Now()
+	now := s.clock.Now()
 
 	// Check if already seen and not expired
 	if expiresAt, exists := s.seenNonces[key]; exists && now.Before(expiresAt) {
@@ -38,23 +41,28 @@ func (s *NonceStore) MarkNonceSeen(ctx context.Context, nonce, clientID string) 
 	return nil
 }
 
-func (s *NonceStore) cleanup(ctx context.Context) {
+// cleanupLoop is real-time orchestration; the decision uses the injected clock.
+func (s *NonceStore) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			s.mu.Lock()
-			now := time.Now()
-			for key, expiresAt := range s.seenNonces {
-				if now.After(expiresAt) {
-					delete(s.seenNonces, key)
-				}
-			}
-			s.mu.Unlock()
+			s.deleteExpired(s.clock.Now())
 		case <-ctx.Done():
 			return
+		}
+	}
+}
+
+func (s *NonceStore) deleteExpired(now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, expiresAt := range s.seenNonces {
+		if now.After(expiresAt) {
+			delete(s.seenNonces, key)
 		}
 	}
 }
