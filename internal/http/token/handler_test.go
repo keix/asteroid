@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/crypto/persister"
 	"asteroid/internal/oidc/signing"
 	"asteroid/internal/store/entity"
@@ -17,12 +18,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupTestHandler() (*Handler, *memory.ClientStore, *memory.AuthCodeStore, *memory.TokenStore, *memory.NonceStore) {
+func setupTestHandler(t *testing.T) (*Handler, *memory.ClientStore, *memory.AuthCodeStore, *memory.TokenStore, *memory.NonceStore) {
 	// Create test stores
+	clk := clock.RealClock{}
 	clientStore := memory.NewClientStore()
-	authCodeStore := memory.NewAuthCodeStore()
-	tokenStore := memory.NewTokenStore(context.Background())
-	nonceStore := memory.NewNonceStore(context.Background())
+	authCodeStore := memory.NewAuthCodeStore(context.Background(), clk)
+	tokenStore := memory.NewTokenStore(context.Background(), clk)
+	nonceStore := memory.NewNonceStore(context.Background(), clk)
 
 	// Add test client
 	testClient := &entity.Client{
@@ -38,9 +40,9 @@ func setupTestHandler() (*Handler, *memory.ClientStore, *memory.AuthCodeStore, *
 	// Create userinfo provider
 	userinfoProvider := source.NewYAMLProvider("../../../data/users.yaml")
 
-	// Create signing service (use file persister for testing)
-	filePersister := persister.New("/tmp/test-keys")
-	signingService := signing.NewService(context.Background(), filePersister, 15*time.Minute, 1*time.Hour)
+	// Create signing service backed by a per-test temp dir to avoid cross-test pollution
+	filePersister := persister.New(t.TempDir())
+	signingService := signing.NewService(context.Background(), filePersister, 15*time.Minute, 1*time.Hour, clk)
 
 	// Create handler
 	handler := NewHandler(
@@ -56,7 +58,7 @@ func setupTestHandler() (*Handler, *memory.ClientStore, *memory.AuthCodeStore, *
 }
 
 func TestTokenHandler_MissingGrantType(t *testing.T) {
-	handler, _, _, _, _ := setupTestHandler()
+	handler, _, _, _, _ := setupTestHandler(t)
 
 	// Set up Gin
 	gin.SetMode(gin.TestMode)
@@ -85,7 +87,7 @@ func TestTokenHandler_MissingGrantType(t *testing.T) {
 }
 
 func TestTokenHandler_InvalidClient(t *testing.T) {
-	handler, _, _, _, _ := setupTestHandler()
+	handler, _, _, _, _ := setupTestHandler(t)
 
 	// Set up Gin
 	gin.SetMode(gin.TestMode)
@@ -117,7 +119,7 @@ func TestTokenHandler_InvalidClient(t *testing.T) {
 }
 
 func TestTokenHandler_ValidTokenExchange(t *testing.T) {
-	handler, _, authCodeStore, _, _ := setupTestHandler()
+	handler, _, authCodeStore, _, _ := setupTestHandler(t)
 
 	// Add test auth code
 	authCode := &entity.AuthCode{
@@ -170,7 +172,7 @@ func TestTokenHandler_ValidTokenExchange(t *testing.T) {
 }
 
 func TestTokenHandler_RefreshTokenFlow(t *testing.T) {
-	handler, _, _, tokenStore, _ := setupTestHandler()
+	handler, _, _, tokenStore, _ := setupTestHandler(t)
 
 	// Add test refresh token
 	refreshToken := &entity.RefreshToken{

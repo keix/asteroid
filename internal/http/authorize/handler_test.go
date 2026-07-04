@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
 	"asteroid/internal/store/memory"
 	"asteroid/internal/userinfo/source"
@@ -16,9 +17,10 @@ import (
 
 func setupTestAuthorizeHandler() (*Handler, *memory.ClientStore, *memory.AuthCodeStore, *memory.NonceStore) {
 	// Create test stores
+	clk := clock.RealClock{}
 	clientStore := memory.NewClientStore()
-	authCodeStore := memory.NewAuthCodeStore()
-	nonceStore := memory.NewNonceStore(context.Background())
+	authCodeStore := memory.NewAuthCodeStore(context.Background(), clk)
+	nonceStore := memory.NewNonceStore(context.Background(), clk)
 
 	// Add test client
 	testClient := &entity.Client{

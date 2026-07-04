@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/crypto/persister"
 	"asteroid/internal/oidc/signing"
 )
@@ -18,7 +19,7 @@ func TestJWKSEndpoint(t *testing.T) {
 	keyPersister := persister.New(tempDir)
 
 	// Create signing service with key rotation
-	signingService := signing.NewService(context.Background(), keyPersister, 15*time.Minute, 1*time.Hour)
+	signingService := signing.NewService(context.Background(), keyPersister, 15*time.Minute, 1*time.Hour, clock.RealClock{})
 	defer signingService.Close()
 
 	// Create JWKS service
