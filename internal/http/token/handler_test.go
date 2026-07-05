@@ -118,6 +118,47 @@ func TestTokenHandler_InvalidClient(t *testing.T) {
 	}
 }
 
+func TestTokenHandler_InvalidBasicClientIncludesChallenge(t *testing.T) {
+	handler, _, _, _, _ := setupTestHandler(t)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/token", handler.Handle)
+
+	data := url.Values{
+		"grant_type":   {"authorization_code"},
+		"code":         {"test-code"},
+		"redirect_uri": {"http://localhost:3000/callback"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(data.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("invalid-client", "wrong-secret")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected status 401, got %d", w.Code)
+	}
+	if got := w.Header().Get("WWW-Authenticate"); got != `Basic realm="token"` {
+		t.Fatalf("Unexpected WWW-Authenticate header: %q", got)
+	}
+}
+
+func TestTokenRequest_DecodesBasicCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	req := httptest.NewRequest(http.MethodPost, "/token", nil)
+	req.SetBasicAuth(url.QueryEscape("client:id"), url.QueryEscape("secret value"))
+	c.Request = req
+
+	parsed := NewRequest(c)
+
+	if parsed.ClientID != "client:id" || parsed.ClientSecret != "secret value" {
+		t.Fatalf("Basic credentials were not decoded: %#v", parsed)
+	}
+}
+
 func TestTokenHandler_ValidTokenExchange(t *testing.T) {
 	handler, _, authCodeStore, _, _ := setupTestHandler(t)
 
@@ -168,6 +209,12 @@ func TestTokenHandler_ValidTokenExchange(t *testing.T) {
 	}
 	if !strings.Contains(responseBody, "expires_in") {
 		t.Error("Expected expires_in in response")
+	}
+	if got := w.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("Expected Cache-Control no-store, got %q", got)
+	}
+	if got := w.Header().Get("Pragma"); got != "no-cache" {
+		t.Errorf("Expected Pragma no-cache, got %q", got)
 	}
 }
 

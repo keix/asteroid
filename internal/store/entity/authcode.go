@@ -13,5 +13,6 @@ type AuthCode struct {
 	Scope               string    `json:"scope"`
 	State               string    `json:"state"`
 	Nonce               string    `json:"nonce"`
+	AuthTime            time.Time `json:"auth_time"`
 	ExpiresAt           time.Time `json:"expires_at"`
 }

@@ -1,6 +1,10 @@
 package token
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/url"
+
+	"github.com/gin-gonic/gin"
+)
 
 // Request represents an OAuth 2.0 token request
 type Request struct {
@@ -50,8 +54,18 @@ func NewRequest(c *gin.Context) *Request {
 	// Handle client authentication - HTTP Basic takes precedence
 	if clientID, clientSecret, ok := c.Request.BasicAuth(); ok {
 		// client_secret_basic (HTTP Basic Auth)
-		req.ClientID = clientID
-		req.ClientSecret = clientSecret
+		// RFC 6749 requires both values to be form-url-encoded before
+		// constructing the Basic credentials.
+		if decoded, err := url.QueryUnescape(clientID); err == nil {
+			req.ClientID = decoded
+		} else {
+			req.ClientID = clientID
+		}
+		if decoded, err := url.QueryUnescape(clientSecret); err == nil {
+			req.ClientSecret = decoded
+		} else {
+			req.ClientSecret = clientSecret
+		}
 		req.AuthMethod = "client_secret_basic"
 	} else if req.ClientID != "" || req.ClientSecret != "" {
 		// client_secret_post (form parameters)

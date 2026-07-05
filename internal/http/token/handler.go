@@ -81,5 +81,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		Scope:        result.Scope,
 	}
 
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
 	c.JSON(http.StatusOK, response)
 }

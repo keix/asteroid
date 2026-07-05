@@ -66,5 +66,7 @@ func (h *Handler) Handle(c *gin.Context) {
 	}
 
 	// Success
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
 	c.Redirect(http.StatusFound, result.RedirectURL)
 }

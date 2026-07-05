@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"net/url"
 	"testing"
 	"time"
 
@@ -139,7 +140,12 @@ func TestAuthorize_NoAuthenticationHeader_Returns401(t *testing.T) {
 }
 
 func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
-	clientStore := &MockClientStore{}
+	clientStore := &MockClientStore{clients: map[string]*entity.Client{
+		"test-client": {
+			ID:           "test-client",
+			RedirectURIs: []string{"https://example.com/callback"},
+		},
+	}}
 	userinfoProvider := &MockUserinfoProvider{}
 	authCodeStore := &MockAuthCodeStore{}
 	nonceStore := &MockNonceStore{}
@@ -147,8 +153,9 @@ func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
 	service := newTestService(clientStore, userinfoProvider, authCodeStore, nonceStore)
 
 	tests := []struct {
-		name string
-		req  *AuthorizeRequest
+		name    string
+		req     *AuthorizeRequest
+		errType ErrorType
 	}{
 		{
 			name: "missing client_id",
@@ -159,6 +166,7 @@ func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
 				State:        "test-state",
 				UserID:       "user-123",
 			},
+			errType: ErrorInvalidRequestNoRedirect,
 		},
 		{
 			name: "missing redirect_uri",
@@ -169,6 +177,7 @@ func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
 				State:        "test-state",
 				UserID:       "user-123",
 			},
+			errType: ErrorInvalidRequestNoRedirect,
 		},
 		{
 			name: "missing response_type",
@@ -179,6 +188,7 @@ func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
 				State:       "test-state",
 				UserID:      "user-123",
 			},
+			errType: ErrorInvalidRequest,
 		},
 	}
 
@@ -187,7 +197,7 @@ func TestAuthorize_MissingRequiredParams_ReturnsError(t *testing.T) {
 			result, errType, err := service.Authorize(context.Background(), tt.req)
 
 			require.NoError(t, err)
-			assert.Equal(t, ErrorInvalidRequest, errType)
+			assert.Equal(t, tt.errType, errType)
 			assert.Nil(t, result)
 		})
 	}
@@ -268,4 +278,36 @@ func TestAuthorize_ValidRequest_ReturnsCode(t *testing.T) {
 	savedCode := authCodeStore.authCodes[fixedCode]
 	require.NotNil(t, savedCode)
 	assert.Equal(t, fixedTime.Add(5*time.Minute), savedCode.ExpiresAt)
+}
+
+func TestAuthorize_EncodesStateAndPreservesRedirectQuery(t *testing.T) {
+	clientStore := &MockClientStore{clients: map[string]*entity.Client{
+		"test-client": {
+			ID:           "test-client",
+			RedirectURIs: []string{"https://example.com/callback?tenant=one"},
+		},
+	}}
+	service := newTestService(
+		clientStore,
+		&MockUserinfoProvider{users: map[string]map[string]any{"user-123": {"sub": "user-123"}}},
+		&MockAuthCodeStore{},
+		&MockNonceStore{},
+	)
+
+	result, errType, err := service.Authorize(context.Background(), &AuthorizeRequest{
+		ClientID:     "test-client",
+		RedirectURI:  "https://example.com/callback?tenant=one",
+		ResponseType: "code",
+		Scope:        "openid",
+		State:        "a&injected=true",
+		UserID:       "user-123",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, ErrorNone, errType)
+	redirect, err := url.Parse(result.RedirectURL)
+	require.NoError(t, err)
+	assert.Equal(t, "one", redirect.Query().Get("tenant"))
+	assert.Equal(t, "a&injected=true", redirect.Query().Get("state"))
+	assert.Empty(t, redirect.Query().Get("injected"))
 }

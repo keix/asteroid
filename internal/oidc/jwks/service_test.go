@@ -55,6 +55,17 @@ func TestJWKSEndpoint(t *testing.T) {
 		assert.Equal(t, "ES256", es256Key.Alg)
 		assert.Equal(t, "sig", es256Key.Use)
 		assert.Equal(t, "EC", es256Key.Kty)
+
+		var rs256Key *JWK
+		for i := range jwks.Keys {
+			if jwks.Keys[i].Alg == "RS256" {
+				rs256Key = &jwks.Keys[i]
+				break
+			}
+		}
+		require.NotNil(t, rs256Key, "RS256 key should exist")
+		assert.Equal(t, "RSA", rs256Key.Kty)
+		assert.Equal(t, "sig", rs256Key.Use)
 	})
 
 	t.Run("should_have_valid_JWK_format", func(t *testing.T) {
@@ -91,8 +102,10 @@ func TestJWKSEndpoint(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, jwks.Keys)
 
-		// Should have exactly one key (current key)
-		assert.Len(t, jwks.Keys, 1)
-		assert.NotEmpty(t, jwks.Keys[0].Kid)
+		// There is one active key per supported signing algorithm.
+		assert.Len(t, jwks.Keys, 2)
+		for _, key := range jwks.Keys {
+			assert.NotEmpty(t, key.Kid)
+		}
 	})
 }

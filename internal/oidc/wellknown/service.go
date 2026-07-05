@@ -22,12 +22,12 @@ func (s *Service) GetOpenIDConfiguration() *OpenIDConfiguration {
 		ResponseTypesSupported:               []string{"code"},
 		GrantTypesSupported:                  []string{"authorization_code", "refresh_token", "client_credentials"},
 		SubjectTypesSupported:                []string{"public"},
-		IDTokenSigningAlgValuesSupported:     []string{"ES256"},
+		IDTokenSigningAlgValuesSupported:     []string{"RS256"},
 		AccessTokenSigningAlgValuesSupported: []string{"ES256"},
 		ScopesSupported:                      []string{"openid"},
-		TokenEndpointAuthMethodsSupported:    []string{"client_secret_post", "client_secret_basic"},
+		TokenEndpointAuthMethodsSupported:    []string{"client_secret_post", "client_secret_basic", "none"},
 		ResponseModesSupported:               []string{"query"},
 		CodeChallengeMethodsSupported:        []string{"S256"},
-		ClaimsSupported:                      []string{"sub", "iss", "aud", "exp", "iat", "nonce", "scope", "client_id", "token_use", "jti"},
+		ClaimsSupported:                      []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "scope", "client_id", "token_use", "jti"},
 	}
 }

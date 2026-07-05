@@ -1,5 +1,5 @@
 # Asteroid
-This document presents comprehensive performance benchmarks for Asteroid, demonstrating its low-latency OIDC operations and the performance benefits of its modernized ECDSA-based architecture.
+This document records historical performance measurements from the ES256-only implementation. ID Tokens now use RS256, so token endpoint results must be re-measured before being treated as current.
 
 ## Benchmark Overview
 This section presents baseline performance measurements for Asteroid's OIDC endpoints, demonstrating microsecond-level latencies achieved through its streamlined architecture.
@@ -29,7 +29,7 @@ These values reflect Asteroid's actual execution time inside Gin, measured direc
 |----------|-----------------|
 | `/.well-known/openid-configuration` | **10–25 µs** |
 | `/authorize` | **120–180 µs** |
-| `/token` (ES256 signing) | **300–450 µs** |
+| `/token` (historical ES256 measurement) | **300–450 µs** |
 | `/jwks.json` | **10–25 µs** |
 
 A full round-trip completes in 400–700 µs end-to-end.
@@ -53,4 +53,4 @@ Asteroid's performance comes from its modernized architecture:
 ## Summary
 Asteroid delivers consistently low-latency OIDC responses on commodity hardware. The small, memory-resident design makes performance predictable and stable even under sustained load.
 
-With the switch to ECDSA-based signing, Asteroid now delivers sub-millisecond OIDC operations — consistently, predictably, and with the simplicity that Go brings to the metal.
+JWT access tokens retain ECDSA-based signing. ID Tokens now use mandatory-to-implement RS256; their latency should be re-benchmarked separately.

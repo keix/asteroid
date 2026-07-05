@@ -200,6 +200,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		ClientID:  authCode.ClientID,
 		UserID:    authCode.UserID,
 		Scope:     authCode.Scope,
+		AuthTime:  authCode.AuthTime,
 		ExpiresAt: now.Add(30 * 24 * time.Hour),
 	}
 
@@ -222,7 +223,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 	// Step 6: ID Token Generation (OIDC Core 3.1.3.6)
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(authCode.Scope, "openid") {
-		idToken, err := s.generateIDToken(authCode.UserID, authCode.ClientID, authCode.Nonce, now)
+		idToken, err := s.generateIDToken(authCode.UserID, authCode.ClientID, authCode.Nonce, authCode.AuthTime, now)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -304,6 +305,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 		ClientID:  refreshTokenEntity.ClientID,
 		UserID:    refreshTokenEntity.UserID,
 		Scope:     refreshTokenEntity.Scope,
+		AuthTime:  refreshTokenEntity.AuthTime,
 		ExpiresAt: now.Add(30 * 24 * time.Hour),
 	}
 
@@ -326,7 +328,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(refreshTokenEntity.Scope, "openid") {
 		// NOTE: nonce is empty for refresh token grant (nonce only applies to authorization request)
-		idToken, err := s.generateIDToken(refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "", now)
+		idToken, err := s.generateIDToken(refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "", refreshTokenEntity.AuthTime, now)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -504,11 +506,8 @@ func (s *Service) generateJWTAccessToken(clientID, audience, scope, jti string, 
 }
 
 // generateIDToken creates an ID token using the signing service
-// Uses current timestamp for both issuance and authentication time
-func (s *Service) generateIDToken(userID, clientID, nonce string, now time.Time) (string, error) {
-	// Get active signing key for ES256 algorithm
-	// Note: ES256 is Asteroid's current algorithm choice for performance and security
-	activeKey, err := s.SigningService.GetActiveKey("ES256")
+func (s *Service) generateIDToken(userID, clientID, nonce string, authTime, now time.Time) (string, error) {
+	activeKey, err := s.SigningService.GetActiveKey("RS256")
 	if err != nil {
 		return "", fmt.Errorf("failed to get active signing key: %w", err)
 	}
@@ -526,9 +525,12 @@ func (s *Service) generateIDToken(userID, clientID, nonce string, now time.Time)
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
+	if !authTime.IsZero() {
+		claims["auth_time"] = authTime.Unix()
+	}
 
 	// Create token
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = activeKey.KeyID
 
 	// Sign token

@@ -27,4 +27,6 @@ func TestWellKnownConfiguration(t *testing.T) {
 
 	// response_types_supported should be correct
 	assert.Contains(t, config.ResponseTypesSupported, "code")
+	assert.Contains(t, config.IDTokenSigningAlgValuesSupported, "RS256")
+	assert.Contains(t, config.TokenEndpointAuthMethodsSupported, "none")
 }

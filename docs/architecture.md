@@ -111,10 +111,10 @@ sequenceDiagram
 
 ### Implemented
 - **OIDC Discovery** (/.well-known/openid-configuration)
-- **JWKS endpoint** (/jwks.json) with EC public key distribution (ES256)
+- **JWKS endpoint** (/jwks.json) with RSA and EC public key distribution
 - **Authorization endpoint** (/authorize) with comprehensive security validation
 - **Token endpoint** (/token) supporting authorization_code and refresh_token grants
-- **ID Token generation** (JWT with ES256 signature)
+- **ID Token generation** (JWT with RS256 signature)
 - **Multiple storage backends** (memory, Redis) with build-tag selection
 - **PKCE support** (RFC 7636) with S256 method validation
 - **Security features**:
@@ -143,7 +143,7 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 ### JWT Header
 ```json
 {
-  "alg": "ES256",
+  "alg": "RS256",
   "kid": "unique-key-id",
   "typ": "JWT"
 }
@@ -157,12 +157,13 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
   "aud": "test-client",
   "exp": 1763746030,
   "iat": 1763742430,
+  "auth_time": 1763742400,
   "nonce": "client-provided-nonce"
 }
 ```
 
 ### Verification
-- ID tokens are signed with ECDSA private key using ES256 algorithm
+- ID tokens are signed with an RSA private key using RS256
 - Public key for verification is available at `/jwks.json` endpoint
 - Key ID (`kid`) in JWT header matches the one in JWKS
 - Standard JWT validation applies (signature, expiration, issuer, audience)
@@ -177,7 +178,7 @@ Asteroid generates OIDC-compliant ID tokens as JWTs with the following character
 - ID tokens expire after 1 hour
 - Automatic cleanup of expired tokens and auth codes
 - Client secret validation for token exchange
-- ECDSA key-based JWT signing (ES256) for ID tokens
+- RSA SHA-256 signing (RS256) for ID tokens
 - Redirect URI validation against registered URIs
 - TTL-based token storage with automatic expiration
 - JWT signature verification via JWKS endpoint

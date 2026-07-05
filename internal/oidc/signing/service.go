@@ -30,8 +30,9 @@ func NewService(ctx context.Context, keyPersister crypto.KeyPersister, idTokenTT
 	manager := New(keyPersister)
 	rotator := NewRotator(manager, idTokenTTL, clk)
 
-	// Create scheduler for automatic rotation (default algorithm: ES256)
-	algorithms := []string{"ES256"} // Default algorithm - idempotent key ID
+	// RS256 is mandatory-to-implement for OpenID Providers. ES256 remains
+	// available for JWT access tokens.
+	algorithms := []string{"RS256", "ES256"}
 	scheduler := NewScheduler(rotator, manager, rotationInterval, algorithms, clk)
 
 	service := &Service{

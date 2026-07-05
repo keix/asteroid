@@ -16,14 +16,17 @@ type Request struct {
 
 // NewRequest creates Request from gin.Context
 func NewRequest(c *gin.Context) *Request {
+	_ = c.Request.ParseForm()
+	form := c.Request.Form
+
 	return &Request{
-		ClientID:            c.Query("client_id"),
-		RedirectURI:         c.Query("redirect_uri"),
-		ResponseType:        c.Query("response_type"),
-		Scope:               c.Query("scope"),
-		State:               c.Query("state"),
-		Nonce:               c.Query("nonce"),
-		CodeChallenge:       c.Query("code_challenge"),
-		CodeChallengeMethod: c.Query("code_challenge_method"),
+		ClientID:            form.Get("client_id"),
+		RedirectURI:         form.Get("redirect_uri"),
+		ResponseType:        form.Get("response_type"),
+		Scope:               form.Get("scope"),
+		State:               form.Get("state"),
+		Nonce:               form.Get("nonce"),
+		CodeChallenge:       form.Get("code_challenge"),
+		CodeChallengeMethod: form.Get("code_challenge_method"),
 	}
 }

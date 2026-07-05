@@ -17,5 +17,6 @@ type RefreshToken struct {
 	ClientID  string    `json:"client_id" yaml:"client_id"`
 	UserID    string    `json:"user_id" yaml:"user_id"`
 	Scope     string    `json:"scope" yaml:"scope"`
+	AuthTime  time.Time `json:"auth_time" yaml:"auth_time"`
 	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
 }
