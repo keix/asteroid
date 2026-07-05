@@ -314,6 +314,10 @@ type Client struct {
 
 The policy is checked at every token request. Requested `scope` and `audience` values that are not on the client's allowlist are rejected with `invalid_scope` or `invalid_target` respectively, before any token is minted.
 
+**Client secret sourcing**: a confidential client's `secret` may be set literally in the YAML file (convenient for local development and demos) or omitted, in which case the loader reads it from the environment variable named `ASTEROID_CLIENT_SECRET_<ID>`, where `<ID>` is the client ID upper-cased with every non-alphanumeric byte replaced by `_`. A missing or empty referenced env var is a fatal load-time error — the server refuses to start rather than register a client with no working secret.
+
+This lets deployments keep configuration under version control while holding the actual secret out of the repo. A typical production setup provisions the env var through a systemd `ExecStartPre` that fetches from a secret store (e.g., AWS SSM Parameter Store, HashiCorp Vault) into an `EnvironmentFile` mounted on tmpfs, so nothing at rest touches the disk. Public clients (no secret authentication) skip this resolution.
+
 **User Entity** (`data/users.yaml`):
 ```go
 type YAMLUser struct {
