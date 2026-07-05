@@ -38,7 +38,10 @@ func HandleDomainError(c *gin.Context, errType authorize.ErrorType, req *Request
 	oidcErr := mapToOIDCError(errType)
 
 	// If we have a valid redirect_uri, redirect with error (RFC 6749 Section 4.1.2.1)
-	if req.RedirectURI != "" && errType != authorize.ErrorInvalidRedirectURI {
+	if req.RedirectURI != "" &&
+		errType != authorize.ErrorInvalidRequestNoRedirect &&
+		errType != authorize.ErrorInvalidClient &&
+		errType != authorize.ErrorInvalidRedirectURI {
 		redirectWithError(c, req.RedirectURI, oidcErr, req.State)
 		return
 	}
@@ -60,6 +63,8 @@ func HandleSystemError(c *gin.Context, err error, req *Request) {
 func mapToOIDCError(errType authorize.ErrorType) *OIDCError {
 	switch errType {
 	case authorize.ErrorInvalidRequest:
+		return errInvalidRequest
+	case authorize.ErrorInvalidRequestNoRedirect:
 		return errInvalidRequest
 	case authorize.ErrorInvalidClient:
 		return errUnauthorizedClient // Per industry practice (Auth0, Okta, Keycloak)

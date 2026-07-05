@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/config"
 	"asteroid/internal/crypto/persister"
 	httpx "asteroid/internal/http"
@@ -19,6 +20,7 @@ import (
 	"asteroid/internal/store/memory"
 	"asteroid/internal/userinfo/source"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // IntegrationTest tests the complete OIDC flow
@@ -41,7 +43,10 @@ func TestOIDCIntegrationFlow(t *testing.T) {
 		testWellKnownEndpoint(t, server)
 
 		// Step 5: Refresh token flow
-		testRefreshTokenFlow(t, server, tokenResponse.RefreshToken)
+		refreshedResponse := testRefreshTokenFlow(t, server, tokenResponse.RefreshToken)
+		if idTokenAuthTime(t, refreshedResponse.IDToken) != idTokenAuthTime(t, tokenResponse.IDToken) {
+			t.Error("refresh token flow did not preserve auth_time")
+		}
 	})
 }
 
@@ -65,9 +70,9 @@ func setupTestServer(t *testing.T) *TestServer {
 	ctx := context.Background()
 	stores := &store.Stores{
 		Client:   memory.NewClientStore(),
-		AuthCode: memory.NewAuthCodeStore(),
-		Token:    memory.NewTokenStore(ctx),
-		Nonce:    memory.NewNonceStore(ctx),
+		AuthCode: memory.NewAuthCodeStore(ctx, clock.RealClock{}),
+		Token:    memory.NewTokenStore(ctx, clock.RealClock{}),
+		Nonce:    memory.NewNonceStore(ctx, clock.RealClock{}),
 	}
 
 	// Load test data
@@ -80,8 +85,9 @@ func setupTestServer(t *testing.T) *TestServer {
 	userinfoProvider := source.NewYAMLProvider("../../data/users.yaml")
 
 	// Create signing service
-	filePersister := persister.New("/tmp/test-keys-integration")
-	signingService := signing.NewService(ctx, filePersister, 15*time.Minute, 1*time.Hour)
+	filePersister := persister.New(t.TempDir())
+	signingService := signing.NewService(ctx, filePersister, 15*time.Minute, 1*time.Hour, clock.RealClock{})
+	t.Cleanup(signingService.Close)
 
 	// Create test config
 	cfg := config.Config{
@@ -156,6 +162,9 @@ func testTokenEndpoint(t *testing.T, server *TestServer, authCode string) *Token
 	if w.Code != http.StatusOK {
 		t.Fatalf("Token exchange failed. Status: %d, Body: %s", w.Code, w.Body.String())
 	}
+	if w.Header().Get("Cache-Control") != "no-store" || w.Header().Get("Pragma") != "no-cache" {
+		t.Error("Token response is missing cache prevention headers")
+	}
 
 	var tokenResponse TokenResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &tokenResponse); err != nil {
@@ -174,6 +183,17 @@ func testTokenEndpoint(t *testing.T, server *TestServer, authCode string) *Token
 	}
 	if tokenResponse.IDToken == "" {
 		t.Error("ID token is empty")
+	}
+	parsed, _, err := jwt.NewParser().ParseUnverified(tokenResponse.IDToken, jwt.MapClaims{})
+	if err != nil {
+		t.Fatalf("Failed to parse ID token: %v", err)
+	}
+	if parsed.Method.Alg() != "RS256" {
+		t.Errorf("Expected RS256 ID token, got %s", parsed.Method.Alg())
+	}
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok || claims["auth_time"] == nil {
+		t.Error("ID token is missing auth_time")
 	}
 
 	return &tokenResponse
@@ -233,7 +253,7 @@ func testWellKnownEndpoint(t *testing.T, server *TestServer) {
 	}
 }
 
-func testRefreshTokenFlow(t *testing.T, server *TestServer, refreshToken string) {
+func testRefreshTokenFlow(t *testing.T, server *TestServer, refreshToken string) *TokenResponse {
 	// Create refresh token request
 	data := url.Values{
 		"grant_type":    []string{"refresh_token"},
@@ -264,4 +284,26 @@ func testRefreshTokenFlow(t *testing.T, server *TestServer, refreshToken string)
 	if tokenResponse.RefreshToken == "" {
 		t.Error("New refresh token is empty")
 	}
+	if tokenResponse.IDToken == "" {
+		t.Error("New ID token is empty")
+	}
+
+	return &tokenResponse
+}
+
+func idTokenAuthTime(t *testing.T, rawToken string) float64 {
+	t.Helper()
+	parsed, _, err := jwt.NewParser().ParseUnverified(rawToken, jwt.MapClaims{})
+	if err != nil {
+		t.Fatalf("Failed to parse ID token: %v", err)
+	}
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok {
+		t.Fatal("ID token has unexpected claims type")
+	}
+	authTime, ok := claims["auth_time"].(float64)
+	if !ok {
+		t.Fatal("ID token is missing auth_time")
+	}
+	return authTime
 }

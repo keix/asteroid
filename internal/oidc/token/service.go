@@ -60,6 +60,7 @@ type TokenRequest struct {
 	ClientSecret string
 	RefreshToken string
 	Scope        string
+	Audience     string
 	CodeVerifier string
 	AuthMethod   string // client_secret_post or client_secret_basic
 }
@@ -71,6 +72,8 @@ func (s *Service) ExchangeToken(ctx context.Context, req *TokenRequest) (*Result
 		return s.exchangeAuthorizationCode(ctx, req)
 	case "refresh_token":
 		return s.refreshToken(ctx, req)
+	case "client_credentials":
+		return s.clientCredentials(ctx, req)
 	default:
 		return nil, ErrorUnsupportedGrantType, nil
 	}
@@ -108,6 +111,11 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 	// Client authentication (client_secret_post, client_secret_basic, etc.)
 	if err := s.validateClientAuthentication(client, req); err != nil {
 		return nil, ErrorInvalidClient, nil
+	}
+
+	// Grant-type policy check
+	if !client.IsGrantTypeAllowed("authorization_code") {
+		return nil, ErrorUnauthorizedClient, nil
 	}
 
 	// Step 3: Authorization Code Validation (OIDC Core 3.1.3.1)
@@ -192,6 +200,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 		ClientID:  authCode.ClientID,
 		UserID:    authCode.UserID,
 		Scope:     authCode.Scope,
+		AuthTime:  authCode.AuthTime,
 		ExpiresAt: now.Add(30 * 24 * time.Hour),
 	}
 
@@ -214,7 +223,7 @@ func (s *Service) exchangeAuthorizationCode(ctx context.Context, req *TokenReque
 	// Step 6: ID Token Generation (OIDC Core 3.1.3.6)
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(authCode.Scope, "openid") {
-		idToken, err := s.generateIDToken(authCode.UserID, authCode.ClientID, authCode.Nonce, now)
+		idToken, err := s.generateIDToken(authCode.UserID, authCode.ClientID, authCode.Nonce, authCode.AuthTime, now)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -242,6 +251,11 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	// Validate client authentication
 	if err := s.validateClientAuthentication(client, req); err != nil {
 		return nil, ErrorInvalidClient, nil
+	}
+
+	// Grant-type policy check
+	if !client.IsGrantTypeAllowed("refresh_token") {
+		return nil, ErrorUnauthorizedClient, nil
 	}
 
 	// Get refresh token
@@ -291,6 +305,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 		ClientID:  refreshTokenEntity.ClientID,
 		UserID:    refreshTokenEntity.UserID,
 		Scope:     refreshTokenEntity.Scope,
+		AuthTime:  refreshTokenEntity.AuthTime,
 		ExpiresAt: now.Add(30 * 24 * time.Hour),
 	}
 
@@ -313,7 +328,7 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest) (*Result,
 	// Generate ID Token if openid scope is requested
 	if strings.Contains(refreshTokenEntity.Scope, "openid") {
 		// NOTE: nonce is empty for refresh token grant (nonce only applies to authorization request)
-		idToken, err := s.generateIDToken(refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "", now)
+		idToken, err := s.generateIDToken(refreshTokenEntity.UserID, refreshTokenEntity.ClientID, "", refreshTokenEntity.AuthTime, now)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -357,12 +372,142 @@ func (s *Service) validateClientAuthentication(client *entity.Client, req *Token
 	return nil
 }
 
-// generateIDToken creates an ID token using the signing service
-// Uses current timestamp for both issuance and authentication time
-func (s *Service) generateIDToken(userID, clientID, nonce string, now time.Time) (string, error) {
-	// Get active signing key for ES256 algorithm
-	// Note: ES256 is Asteroid's current algorithm choice for performance and security
+// clientCredentials implements the OAuth 2.0 client credentials grant (RFC 6749 §4.4)
+// and mints a JWT access token per RFC 9068.
+func (s *Service) clientCredentials(ctx context.Context, req *TokenRequest) (*Result, ErrorType, error) {
+	// 1. Request parameter validation
+	if req.ClientID == "" {
+		return nil, ErrorInvalidRequest, nil
+	}
+
+	// 2. Client lookup
+	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
+	if err != nil {
+		if errors.Is(err, entity.ErrClientNotFound) {
+			return nil, ErrorInvalidClient, nil
+		}
+		return nil, 0, err
+	}
+
+	// 3. Public clients are not permitted to use client_credentials
+	if client.IsPublicClient() {
+		return nil, ErrorInvalidClient, nil
+	}
+
+	// 4. Client authentication (secret required for confidential clients)
+	if err := s.validateClientAuthentication(client, req); err != nil {
+		return nil, ErrorInvalidClient, nil
+	}
+
+	// 5. Grant-type policy check
+	if !client.IsGrantTypeAllowed("client_credentials") {
+		return nil, ErrorUnauthorizedClient, nil
+	}
+
+	// 6. Resolve audience against the client's allowlist
+	audience, errType := resolveAudience(client, req.Audience)
+	if errType != ErrorNone {
+		return nil, errType, nil
+	}
+
+	// 7. Resolve scopes against the client's allowlist
+	grantedScopes, errType := resolveScopes(client, req.Scope)
+	if errType != ErrorNone {
+		return nil, errType, nil
+	}
+	scopeStr := strings.Join(grantedScopes, " ")
+
+	// 8. Mint JWT access token
+	now := s.Clock.Now()
+	jti := s.Generator.NewToken()
+	accessToken, err := s.generateJWTAccessToken(client.ID, audience, scopeStr, jti, now)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return &Result{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   3600,
+		Scope:       scopeStr,
+	}, ErrorNone, nil
+}
+
+// resolveAudience validates and resolves the requested audience against the client's allowlist.
+// Returns invalid_request when the client has no configured audience for client_credentials,
+// or when the client has multiple entries and none was requested.
+// Returns invalid_target when the requested audience is not in the allowlist.
+func resolveAudience(client *entity.Client, requested string) (string, ErrorType) {
+	if len(client.AllowedAudiences) == 0 {
+		return "", ErrorInvalidRequest
+	}
+	if requested == "" {
+		if len(client.AllowedAudiences) == 1 {
+			return client.AllowedAudiences[0], ErrorNone
+		}
+		return "", ErrorInvalidRequest
+	}
+	for _, aud := range client.AllowedAudiences {
+		if aud == requested {
+			return requested, ErrorNone
+		}
+	}
+	return "", ErrorInvalidTarget
+}
+
+// resolveScopes validates the requested scopes against the client's allowlist.
+// When no scope is requested, the full allowlist is granted.
+// An empty allowlist means no scopes may be granted; a scoped request against it fails.
+func resolveScopes(client *entity.Client, requested string) ([]string, ErrorType) {
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
+		return client.AllowedScopes, ErrorNone
+	}
+	if len(client.AllowedScopes) == 0 {
+		return nil, ErrorInvalidScope
+	}
+	allowed := make(map[string]struct{}, len(client.AllowedScopes))
+	for _, s := range client.AllowedScopes {
+		allowed[s] = struct{}{}
+	}
+	parts := strings.Fields(requested)
+	for _, p := range parts {
+		if _, ok := allowed[p]; !ok {
+			return nil, ErrorInvalidScope
+		}
+	}
+	return parts, ErrorNone
+}
+
+// generateJWTAccessToken creates an RFC 9068 JWT access token signed with the active ES256 key.
+func (s *Service) generateJWTAccessToken(clientID, audience, scope, jti string, now time.Time) (string, error) {
 	activeKey, err := s.SigningService.GetActiveKey("ES256")
+	if err != nil {
+		return "", fmt.Errorf("failed to get active signing key: %w", err)
+	}
+
+	claims := jwt.MapClaims{
+		"iss":       s.Issuer,
+		"sub":       clientID,
+		"aud":       audience,
+		"exp":       now.Add(1 * time.Hour).Unix(),
+		"iat":       now.Unix(),
+		"client_id": clientID,
+		"token_use": "access",
+		"jti":       jti,
+	}
+	if scope != "" {
+		claims["scope"] = scope
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header["kid"] = activeKey.KeyID
+	return token.SignedString(activeKey.PrivateKey)
+}
+
+// generateIDToken creates an ID token using the signing service
+func (s *Service) generateIDToken(userID, clientID, nonce string, authTime, now time.Time) (string, error) {
+	activeKey, err := s.SigningService.GetActiveKey("RS256")
 	if err != nil {
 		return "", fmt.Errorf("failed to get active signing key: %w", err)
 	}
@@ -380,9 +525,12 @@ func (s *Service) generateIDToken(userID, clientID, nonce string, now time.Time)
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
+	if !authTime.IsZero() {
+		claims["auth_time"] = authTime.Unix()
+	}
 
 	// Create token
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = activeKey.KeyID
 
 	// Sign token

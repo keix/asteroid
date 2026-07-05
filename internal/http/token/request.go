@@ -1,6 +1,10 @@
 package token
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/url"
+
+	"github.com/gin-gonic/gin"
+)
 
 // Request represents an OAuth 2.0 token request
 type Request struct {
@@ -11,6 +15,7 @@ type Request struct {
 	ClientSecret string `json:"client_secret" form:"client_secret"`
 	RefreshToken string `json:"refresh_token" form:"refresh_token"`
 	Scope        string `json:"scope" form:"scope"`
+	Audience     string `json:"audience" form:"audience"`
 	CodeVerifier string `json:"code_verifier" form:"code_verifier"`
 	AuthMethod   string // client_secret_post or client_secret_basic
 }
@@ -39,6 +44,9 @@ func NewRequest(c *gin.Context) *Request {
 	if req.Scope == "" {
 		req.Scope = c.PostForm("scope")
 	}
+	if req.Audience == "" {
+		req.Audience = c.PostForm("audience")
+	}
 	if req.CodeVerifier == "" {
 		req.CodeVerifier = c.PostForm("code_verifier")
 	}
@@ -46,8 +54,18 @@ func NewRequest(c *gin.Context) *Request {
 	// Handle client authentication - HTTP Basic takes precedence
 	if clientID, clientSecret, ok := c.Request.BasicAuth(); ok {
 		// client_secret_basic (HTTP Basic Auth)
-		req.ClientID = clientID
-		req.ClientSecret = clientSecret
+		// RFC 6749 requires both values to be form-url-encoded before
+		// constructing the Basic credentials.
+		if decoded, err := url.QueryUnescape(clientID); err == nil {
+			req.ClientID = decoded
+		} else {
+			req.ClientID = clientID
+		}
+		if decoded, err := url.QueryUnescape(clientSecret); err == nil {
+			req.ClientSecret = decoded
+		} else {
+			req.ClientSecret = clientSecret
+		}
 		req.AuthMethod = "client_secret_basic"
 	} else if req.ClientID != "" || req.ClientSecret != "" {
 		// client_secret_post (form parameters)

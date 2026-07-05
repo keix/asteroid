@@ -29,12 +29,16 @@ var (
 	errUnauthorizedClient   = newOIDCError("unauthorized_client", "The authenticated client is not authorized to use this authorization grant type")
 	errUnsupportedGrantType = newOIDCError("unsupported_grant_type", "The authorization grant type is not supported by the authorization server")
 	errInvalidScope         = newOIDCError("invalid_scope", "The requested scope is invalid, unknown, or malformed")
+	errInvalidTarget        = newOIDCError("invalid_target", "The requested audience is not permitted for this client")
 	errServerError          = newOIDCError("server_error", "The authorization server encountered an unexpected condition")
 )
 
 // HandleDomainError handles domain errors and converts them to HTTP responses
 func HandleDomainError(c *gin.Context, errType token.ErrorType, req *Request) {
 	oidcErr := mapToOIDCError(errType)
+	if errType == token.ErrorInvalidClient && req.AuthMethod == "client_secret_basic" {
+		c.Header("WWW-Authenticate", `Basic realm="token"`)
+	}
 	status := getHTTPStatusFromOIDCError(oidcErr.Code)
 	c.JSON(status, oidcErr)
 }
@@ -60,6 +64,8 @@ func mapToOIDCError(errType token.ErrorType) *OIDCError {
 		return errUnsupportedGrantType
 	case token.ErrorInvalidScope:
 		return errInvalidScope
+	case token.ErrorInvalidTarget:
+		return errInvalidTarget
 	case token.ErrorServerError:
 		return errServerError
 	default:
@@ -70,9 +76,9 @@ func mapToOIDCError(errType token.ErrorType) *OIDCError {
 // getHTTPStatusFromOIDCError maps OIDC error codes to HTTP status codes
 func getHTTPStatusFromOIDCError(errorCode string) int {
 	switch errorCode {
-	case "invalid_request", "invalid_grant", "unsupported_grant_type", "invalid_scope":
+	case "invalid_request", "invalid_grant", "unauthorized_client", "unsupported_grant_type", "invalid_scope", "invalid_target":
 		return http.StatusBadRequest
-	case "invalid_client", "unauthorized_client":
+	case "invalid_client":
 		return http.StatusUnauthorized
 	case "server_error":
 		return http.StatusInternalServerError

@@ -57,13 +57,13 @@ The set of grant types a given client may use is controlled by the `allowed_gran
   "response_types_supported": ["code"],
   "grant_types_supported": ["authorization_code", "refresh_token", "client_credentials"],
   "subject_types_supported": ["public"],
-  "id_token_signing_alg_values_supported": ["ES256"],
+  "id_token_signing_alg_values_supported": ["RS256"],
   "access_token_signing_alg_values_supported": ["ES256"],
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
   "response_modes_supported": ["query"],
   "code_challenge_methods_supported": ["S256"],
-  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "nonce", "scope", "client_id", "token_use", "jti"]
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "scope", "client_id", "token_use", "jti"]
 }
 ```
 
@@ -155,10 +155,18 @@ No `refresh_token` is issued for the client credentials grant (per RFC 6749 §4.
 {
   "keys": [
     {
+      "kty": "RSA",
+      "use": "sig",
+      "alg": "RS256",
+      "kid": "id-token-key-id",
+      "n": "base64url-encoded-modulus",
+      "e": "AQAB"
+    },
+    {
       "kty": "EC",
       "use": "sig",
       "alg": "ES256",
-      "kid": "key-id",
+      "kid": "access-token-key-id",
       "crv": "P-256",
       "x": "base64url-encoded-x-coordinate",
       "y": "base64url-encoded-y-coordinate"
@@ -178,7 +186,7 @@ No `refresh_token` is issued for the client credentials grant (per RFC 6749 §4.
 
 ### Access Token (Client Credentials flow)
 - **Format**: JWT (JSON Web Token), RFC 9068 profile
-- **Algorithm**: ES256, signed with the same active key as ID Tokens and published via `/jwks.json`
+- **Algorithm**: ES256, signed with its active key and published via `/jwks.json`
 - **Lifetime**: 1 hour
 - **Storage**: Stateless — not persisted server-side; revocation waits for `exp`
 - **Validation**: Resource server verifies the JWT signature against the JWKS endpoint locally, with no round trip to Asteroid on the hot path
@@ -201,10 +209,10 @@ No `refresh_token` is issued for the client credentials grant (per RFC 6749 §4.
 - `sub` — equal to `client_id` when there is no user (RFC 9068 §2.2)
 - `aud` — the target resource server; validated at issuance against `allowed_audiences` and again at consumption by the resource server
 - `scope` — space-separated list of granted scopes (subset of the client's `allowed_scopes`)
-- `token_use` — always `"access"`; distinguishes access tokens from ID tokens when both are signed with the same key
+- `token_use` — always `"access"`; identifies the JWT as an access token
 - `jti` — unique token identifier; reserved for future revocation via a `jti` denylist
 
-The same signing key (ES256, published via JWKS) is used for both ID Tokens and JWT access tokens. Consumers distinguish them by `token_use` and by the presence of `nonce` (ID Token only).
+ID Tokens use RS256 and JWT access tokens use ES256. Both active public keys are published via JWKS. Consumers distinguish token purposes by their validation context and claims.
 
 ### Refresh Token
 - **Format**: UUID v4
@@ -214,7 +222,7 @@ The same signing key (ES256, published via JWKS) is used for both ID Tokens and 
 
 ### ID Token
 - **Format**: JWT (JSON Web Token)
-- **Algorithm**: ES256
+- **Algorithm**: RS256
 - **Lifetime**: 1 hour
 - **Claims**: Standard OIDC claims
 
@@ -226,6 +234,7 @@ The same signing key (ES256, published via JWKS) is used for both ID Tokens and 
   "aud": "client-id",
   "exp": 1234567890,
   "iat": 1234567890,
+  "auth_time": 1234567800,
   "nonce": "request-nonce"
 }
 ```
@@ -391,7 +400,7 @@ type RefreshToken struct {
 - **Users**: `data/users.yaml`
 
 ### Key Management
-- **Algorithm**: ECDSA P-256 for ES256 signatures
+- **Algorithms**: RSA SHA-256 (RS256) for ID Tokens and ECDSA P-256 (ES256) for JWT access tokens
 - **Format**: PEM encoded private key
 - **Generation**: Automatic key generation at startup
 - **Rotation**: Automatic rotation with configurable intervals

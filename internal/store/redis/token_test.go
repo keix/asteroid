@@ -44,6 +44,7 @@ func TestTokenStore_SaveAndGetRefreshToken(t *testing.T) {
 		ClientID:  "test-client",
 		UserID:    "test-user",
 		Scope:     "openid",
+		AuthTime:  time.Now().Add(-5 * time.Minute).Truncate(time.Second),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 
@@ -68,6 +69,9 @@ func TestTokenStore_SaveAndGetRefreshToken(t *testing.T) {
 	}
 	if retrieved.UserID != refreshToken.UserID {
 		t.Errorf("Expected user ID %s, got %s", refreshToken.UserID, retrieved.UserID)
+	}
+	if !retrieved.AuthTime.Equal(refreshToken.AuthTime) {
+		t.Errorf("Expected auth time %s, got %s", refreshToken.AuthTime, retrieved.AuthTime)
 	}
 }
 

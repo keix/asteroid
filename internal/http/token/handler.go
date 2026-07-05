@@ -53,6 +53,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		ClientSecret: httpReq.ClientSecret,
 		RefreshToken: httpReq.RefreshToken,
 		Scope:        httpReq.Scope,
+		Audience:     httpReq.Audience,
 		CodeVerifier: httpReq.CodeVerifier,
 		AuthMethod:   httpReq.AuthMethod,
 	}
@@ -80,5 +81,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		Scope:        result.Scope,
 	}
 
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
 	c.JSON(http.StatusOK, response)
 }

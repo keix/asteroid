@@ -6,6 +6,7 @@ type ErrorType int
 const (
 	ErrorNone ErrorType = iota
 	ErrorInvalidRequest
+	ErrorInvalidRequestNoRedirect
 	ErrorInvalidClient
 	ErrorInvalidRedirectURI
 	ErrorUnsupportedResponse
@@ -20,6 +21,8 @@ func (e ErrorType) String() string {
 	case ErrorNone:
 		return ""
 	case ErrorInvalidRequest:
+		return "invalid_request"
+	case ErrorInvalidRequestNoRedirect:
 		return "invalid_request"
 	case ErrorInvalidClient:
 		return "invalid_client"

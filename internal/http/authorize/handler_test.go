@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"asteroid/internal/clock"
 	"asteroid/internal/store/entity"
 	"asteroid/internal/store/memory"
 	"asteroid/internal/userinfo/source"
@@ -16,9 +17,10 @@ import (
 
 func setupTestAuthorizeHandler() (*Handler, *memory.ClientStore, *memory.AuthCodeStore, *memory.NonceStore) {
 	// Create test stores
+	clk := clock.RealClock{}
 	clientStore := memory.NewClientStore()
-	authCodeStore := memory.NewAuthCodeStore()
-	nonceStore := memory.NewNonceStore(context.Background())
+	authCodeStore := memory.NewAuthCodeStore(context.Background(), clk)
+	nonceStore := memory.NewNonceStore(context.Background(), clk)
 
 	// Add test client
 	testClient := &entity.Client{
@@ -70,7 +72,7 @@ func TestAuthorizeHandler_MissingRequiredParams(t *testing.T) {
 				"scope":         []string{"openid"},
 				"state":         []string{"test-state"},
 			},
-			expectRedirect: true,
+			expectRedirect: false,
 		},
 		{
 			name: "missing redirect_uri",
@@ -147,14 +149,48 @@ func TestAuthorizeHandler_InvalidClient(t *testing.T) {
 
 	r.ServeHTTP(w, req)
 
-	// RFC 6749: redirect with error since redirect_uri is provided
-	if w.Code != http.StatusFound {
-		t.Errorf("Expected status 302 (redirect), got %d", w.Code)
+	// An untrusted redirect URI must never be used when the client is invalid.
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401, got %d", w.Code)
 	}
-	location := w.Header().Get("Location")
-	// Actual implementation returns unauthorized_client for invalid client
-	if !strings.Contains(location, "error=unauthorized_client") {
-		t.Errorf("Expected error=unauthorized_client in redirect URL: %s", location)
+	if location := w.Header().Get("Location"); location != "" {
+		t.Errorf("Expected no redirect, got %s", location)
+	}
+	if !strings.Contains(w.Body.String(), "unauthorized_client") {
+		t.Errorf("Expected unauthorized_client response: %s", w.Body.String())
+	}
+}
+
+func TestAuthorizeHandler_PostRequest(t *testing.T) {
+	handler, _, _, _ := setupTestAuthorizeHandler()
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/authorize", handler.Handle)
+
+	params := url.Values{
+		"client_id":     {"test-client"},
+		"redirect_uri":  {"http://localhost:3000/callback"},
+		"response_type": {"code"},
+		"scope":         {"openid"},
+		"state":         {"post-state"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/authorize", strings.NewReader(params.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Authenticated-User", "user-123")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Fatalf("Expected status 302, got %d: %s", w.Code, w.Body.String())
+	}
+	location, err := url.Parse(w.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if location.Query().Get("code") == "" || location.Query().Get("state") != "post-state" {
+		t.Fatalf("Unexpected authorization response: %s", location.String())
 	}
 }
 

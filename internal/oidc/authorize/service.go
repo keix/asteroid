@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"errors"
+	"net/url"
 	"slices"
 	"time"
 
@@ -56,8 +57,25 @@ type AuthorizeRequest struct {
 
 // Authorize processes authorization request (pure business logic)
 func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result, ErrorType, error) {
-	// Validate required parameters
-	if req.ClientID == "" || req.RedirectURI == "" || req.ResponseType == "" {
+	// A redirect is safe only after both the client and redirect URI have been
+	// validated.
+	if req.ClientID == "" || req.RedirectURI == "" {
+		return nil, ErrorInvalidRequestNoRedirect, nil
+	}
+
+	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
+	if err != nil {
+		if errors.Is(err, entity.ErrClientNotFound) {
+			return nil, ErrorInvalidClient, nil
+		}
+		return nil, 0, err
+	}
+
+	if !validateExactRedirectURI(client.RedirectURIs, req.RedirectURI) {
+		return nil, ErrorInvalidRedirectURI, nil
+	}
+
+	if req.ResponseType == "" {
 		return nil, ErrorInvalidRequest, nil
 	}
 
@@ -86,27 +104,9 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, ErrorInvalidScope, nil
 	}
 
-	// Get and validate client (need client info for PKCE policy)
-	client, err := s.ClientStore.GetClient(ctx, req.ClientID)
-	if err != nil {
-		if errors.Is(err, entity.ErrClientNotFound) {
-			return nil, ErrorInvalidClient, nil
-		}
-		return nil, 0, err
-	}
-
 	// SECURITY: PKCE (RFC 7636) validation and enforcement
 	if err := s.validatePKCEForClient(client, req); err != nil {
 		return nil, ErrorInvalidRequest, nil
-	}
-
-	// SECURITY NOTE:
-	// Do not perform redirect_uri validation in the HTTP handler.
-	// OAuth2/OIDC redirect_uri matching is protocol logic, not transport logic.
-	// Keeping this validation inside the authorization service ensures consistency
-	// across all entry points and improves auditability.
-	if !validateExactRedirectURI(client.RedirectURIs, req.RedirectURI) {
-		return nil, ErrorInvalidRedirectURI, nil
 	}
 
 	// Validate authenticated user exists (from X-Authenticated-User header)
@@ -135,6 +135,7 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		Scope:               req.Scope,
 		State:               req.State,
 		Nonce:               req.Nonce,
+		AuthTime:            now,
 		ExpiresAt:           now.Add(5 * time.Minute),
 	}
 
@@ -142,13 +143,18 @@ func (s *Service) Authorize(ctx context.Context, req *AuthorizeRequest) (*Result
 		return nil, 0, err
 	}
 
-	// Build success redirect URL
-	redirectURL := req.RedirectURI + "?code=" + code
-	if req.State != "" {
-		redirectURL += "&state=" + req.State
+	redirectURI, err := url.Parse(req.RedirectURI)
+	if err != nil {
+		return nil, 0, err
 	}
+	params := redirectURI.Query()
+	params.Set("code", code)
+	if req.State != "" {
+		params.Set("state", req.State)
+	}
+	redirectURI.RawQuery = params.Encode()
 
-	return &Result{RedirectURL: redirectURL}, ErrorNone, nil
+	return &Result{RedirectURL: redirectURI.String()}, ErrorNone, nil
 }
 
 // validateExactRedirectURI performs RFC 6749 compliant exact redirect URI validation

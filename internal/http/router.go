@@ -29,6 +29,7 @@ func RegisterRoutes(
 	{
 		oidcGroup.GET(".well-known/openid-configuration", wellKnownHandler.Handle)
 		oidcGroup.GET("authorize", authorizeHandler.Handle)
+		oidcGroup.POST("authorize", authorizeHandler.Handle)
 		oidcGroup.POST("token", tokenHandler.Handle)
 		oidcGroup.GET("jwks.json", jwksHandler.Handle)
 	}
