@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -23,6 +26,8 @@ import (
 // Asteroid represents the complete OIDC provider
 type Asteroid struct {
 	httpServer     *http.Server
+	listener       net.Listener
+	listenAddr     string
 	signingService *signing.Service
 	ctx            context.Context
 	cancel         context.CancelFunc
@@ -52,9 +57,16 @@ func Assemble() *Asteroid {
 	// Initialize userinfo provider (lazy loading from YAML)
 	userinfoProvider := source.NewYAMLProvider("./data/users.yaml")
 
+	// When run under systemd with StateDirectory=, use the writable state dir;
+	// otherwise fall back to ./keys for local development.
+	keyDir := "./keys"
+	if sd := os.Getenv("STATE_DIRECTORY"); sd != "" {
+		keyDir = filepath.Join(sd, "keys")
+	}
+
 	signingService := signing.NewFileService(
 		ctx,
-		"./keys",
+		keyDir,
 		24*time.Hour, // Key Retention: 1 days
 		24*time.Hour, // Key Rotation: 1 day
 		clk,
@@ -68,19 +80,52 @@ func Assemble() *Asteroid {
 	httpx.RegisterRoutes(r, cfg, stores, userinfoProvider, signingService)
 
 	srv := &http.Server{
-		Addr:           ":8880",
 		Handler:        r,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
+	listener, addr, err := makeListener()
+	if err != nil {
+		log.Fatalf("failed to bind listener: %v", err)
+	}
+
 	return &Asteroid{
 		httpServer:     srv,
+		listener:       listener,
+		listenAddr:     addr,
 		signingService: signingService,
 		ctx:            ctx,
 		cancel:         cancel,
 	}
+}
+
+// makeListener binds either a unix socket (when systemd provides RUNTIME_DIRECTORY)
+// or TCP :8880 for local development. The unix socket is chmod'd to 0660 so
+// members of the service group (e.g. nginx) can connect while others cannot.
+func makeListener() (net.Listener, string, error) {
+	if rd := os.Getenv("RUNTIME_DIRECTORY"); rd != "" {
+		path := filepath.Join(rd, "asteroid.sock")
+		// Remove any stale socket from an unclean previous run.
+		_ = os.Remove(path)
+
+		l, err := net.Listen("unix", path)
+		if err != nil {
+			return nil, "", err
+		}
+		if err := os.Chmod(path, 0660); err != nil {
+			l.Close()
+			return nil, "", err
+		}
+		return l, fmt.Sprintf("unix socket: %s", path), nil
+	}
+
+	l, err := net.Listen("tcp", ":8880")
+	if err != nil {
+		return nil, "", err
+	}
+	return l, ":8880", nil
 }
 
 // Run starts the server with graceful shutdown
@@ -105,8 +150,8 @@ func (a *Asteroid) Run() {
 		log.Println("Asteroid shutdown complete.")
 	}()
 
-	log.Println("Asteroid OIDC Provider running on :8880")
-	if err := a.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	log.Printf("Asteroid OIDC Provider running on %s", a.listenAddr)
+	if err := a.httpServer.Serve(a.listener); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("could not start server: %v", err)
 	}
 }
